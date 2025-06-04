@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    branches: [ main ]
+permissions:
+  contents: write
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            artifact-name: typsite-x86_64-pc-windows-msvc.exe
+          - os: ubuntu-latest
+            rust-target: x86_64-unknown-linux-gnu
+            artifact-name: typsite-x86_64-unknown-linux-gnu
+          - os: macos-latest
+            rust-target: aarch64-apple-darwin
+            artifact-name: typsite-aarch64-apple-darwin
+    name: Release ${{ matrix.rust-target }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9.5.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.rust-target }}
+          toolchain: nightly
+          rustflags: --cfg tokio_unstable
+          override: true
+      - name: Get package name
+        id: version
+        uses: nicolaiunrein/cargo-get@master
+        with:
+          subcommand: package.version --pretty
+      - run: |
+          echo ${{ steps.version.outputs.metadata }}
+      - name: Build
+        run: |
+          cargo build --release --target ${{ matrix.rust-target }}
+      - name: Copy Typsite - Windows
+        if: ${{ contains(matrix.os,'windows')  }}
+        run: |
+            move target/${{ matrix.rust-target }}/release/typsite.exe ${{ matrix.artifact-name }}
+      - name: Copy Typsite - Linux or Apple
+        if: ${{ ! contains(matrix.os,'windows')  }}
+        run: |
+            mv target/${{ matrix.rust-target }}/release/typsite ${{ matrix.artifact-name }}
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: ${{ matrix.artifact-name }}
+          overwrite: true
+          tag: ${{ steps.version.outputs.metadata }}

@@ -1,0 +1,116 @@
+use crate::ir::article::sidebar::{SidebarIndex, SidebarPos};
+use crate::compile::registry::{Key, KeyRegistry};
+use serde::{Deserialize, Serialize};
+
+pub struct Embed {
+    pub slug: Key,
+    pub open: bool,
+    pub section_type: SectionType,
+    pub sidebar_pos: SidebarPos,
+    pub full_sidebar_index: SidebarIndex,  // Pos, sidebar index
+    pub embed_sidebar_index: SidebarIndex, // Pos, sidebar index
+    pub body_index: usize,
+}
+
+impl Embed {
+    pub fn new(
+        slug: Key,
+        open: bool,
+        section_type: SectionType,
+        sidebar_pos: SidebarPos,
+        full_sidebar_index: SidebarIndex,
+        embed_sidebar_index: SidebarIndex,
+        body_index: usize,
+    ) -> Self {
+        Embed {
+            slug,
+            open,
+            section_type,
+            sidebar_pos,
+            full_sidebar_index,
+            embed_sidebar_index,
+            body_index,
+        }
+    }
+
+    pub fn from(self_slug: &str, pure: PureEmbed, registry: &KeyRegistry) -> Option<Embed> {
+        let slug = pure.slug;
+        match registry.slug(slug.as_str()) {
+            Some(slug) => Some(Embed::new(
+                slug,
+                pure.open,
+                pure.section_type,
+                pure.sidebar_pos,
+                pure.full_sidebar_index,
+                pure.embed_sidebar_index,
+                pure.body_index,
+            )),
+            None => {
+                eprintln!(
+                    "[WARN] Embed article not found: {slug} in {self_slug}, skip this embedding."
+                );
+                None
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct PureEmbed {
+    slug: String,
+    open: bool,
+    section_type: SectionType,
+    sidebar_pos: SidebarPos,
+    full_sidebar_index: SidebarIndex,
+    embed_sidebar_index: SidebarIndex,
+    body_index: usize,
+}
+
+impl From<Embed> for PureEmbed {
+    fn from(embed: Embed) -> Self {
+        PureEmbed {
+            slug: embed.slug.to_string(),
+            open: embed.open,
+            section_type: embed.section_type,
+            sidebar_pos: embed.sidebar_pos,
+            full_sidebar_index: embed.full_sidebar_index,
+            embed_sidebar_index: embed.embed_sidebar_index,
+            body_index: embed.body_index,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Copy, Clone)]
+pub enum SectionType {
+    None,
+    OnlyTitle,
+    Full,
+}
+
+impl<T: AsRef<str>> From<T> for SectionType {
+    fn from(s: T) -> Self {
+        match s.as_ref() {
+            "none" => SectionType::None,
+            "only_title" => SectionType::OnlyTitle,
+            "full" => SectionType::Full,
+            _ => {
+                eprintln!("[WARN] Invalid sidebar type: {}", s.as_ref());
+                SectionType::Full
+            }
+        }
+    }
+}
+
+// PureAtom::Embed { slug, open, sidebar_pos, index } => match registry.know(slug,"Embed",self_slug) {
+// Some(slug) => Atom::Embed { slug, open, sidebar_pos, index },
+// None =>Atom::Plain
+// }
+
+// #[serde(rename = "embed")]
+// Embed {
+// slug: String,
+// open: bool,
+// #[serde(default, skip_serializing_if = "Option::is_none", with = "pos_format")]
+// sidebar_pos: Option<(Vec<usize>,usize)>,
+// index: usize
+// },
