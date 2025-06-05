@@ -48,16 +48,43 @@ $
 
 Another One Bites the Dust#footnote(<dust>)
 
+#text-align(center)[
+  #html.elem(
+    "iframe",
+    attrs: (
+      allow: "autoplay *; encrypted-media *; fullscreen *; clipboard-write",
+      frameborder: "0",
+      height: "175",
+      style: "width:100%;max-width:660px;overflow:hidden;border-radius:10px;",
+      sandbox: "allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation",
+      src: "https://embed.music.apple.com/my/song/time-flows-ever-onward/1749333759",
+    ),
+  )
+
+  #html.elem(
+    "iframe",
+    attrs: (
+      style: "border-radius:12px",
+      src: "https://open.spotify.com/embed/track/5QspiGbL0BiWfBdm3iSJal?utm_source=generator",
+      width: "100%",
+      height: "352",
+      frameBorder: "0",
+      allowfullscreen: "",
+      allow: "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture",
+      loading: "lazy",
+    ),
+  )
+]
 
 #footnote[ #link("https://music.apple.com/us/song/another-one-bites-the-dust/1440650719")[来听!] ] <dust>
 
 == 神奇的地方 <amazing>
 
-引用: #cite("./typst.typ")[我能自定义引用段的内容]   or  我也能直接用引用文章的标题:  #cite-title("./typst.typ")
+引用: #cite("./typst.typ")[我能自定义引用段的内容] or 我也能直接用引用文章的标题: #cite-title("./typst.typ")
 
 我还能嵌入页面!
 
-#html-text(size: 30pt)[⬇️] 我还能直接把嵌入的内容当作某一个特定heading-level的section来用! 
+#html-text(size: 30pt)[⬇️] 我还能直接把嵌入的内容当作某一个特定heading-level的section来用!
 === #embed("./typst.typ", open: false, sidebar: "only_title")
 
 
@@ -75,5 +102,5 @@ fn main() {
 
 #import "./index.typ": process
 
-#inline(scale: 200%,fill: color.white,alignment: center)[#process]
+#inline(scale: 200%, fill: color.white, alignment: center)[#process]
 
