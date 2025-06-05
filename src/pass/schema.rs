@@ -2,7 +2,7 @@ use crate::config::TypsiteConfig;
 use crate::config::footer::{BACKLINKS_KEY, REFERENCES_KEY};
 use crate::config::schema::{BACKLINK_KEY, REFERENCE_KEY, Schema};
 use crate::ir::article::data::GlobalData;
-use crate::ir::article::Article;
+use crate::ir::article::{Article};
 use crate::util::error::TypsiteError;
 use crate::util::html::{Attributes, OutputHtml};
 use crate::util::html::{OutputHead, write_token};
@@ -101,11 +101,13 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
             footer.head.extend(&references.head);
             footer.head.extend(&backlinks.head);
 
+            let backlinks = ac_replace(&self.config.footer.backlinks.body, &[(BACKLINKS_KEY,&backlinks.body)]);
+            let references = ac_replace(&&self.config.footer.references.body, &[(REFERENCES_KEY,&references.body)]);
             footer.body = ac_replace(
                 footer_body,
                 &[
-                    (REFERENCES_KEY, &references.body),
-                    (BACKLINKS_KEY, &backlinks.body),
+                    (REFERENCES_KEY, &references),
+                    (BACKLINKS_KEY, &backlinks),
                 ],
             );
             footer
