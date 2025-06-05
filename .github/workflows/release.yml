@@ -62,4 +62,4 @@ jobs:
         with:
           file: ${{ matrix.artifact-name }}
           overwrite: true
-          tag: ${{ steps.version.outputs.metadata }}-${{ GITHUB_RUN_NUMBER }}
+          tag: ${{ steps.version.outputs.metadata }}-${{ github.run_number }}
