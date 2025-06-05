@@ -326,5 +326,5 @@ Typsite 兼容绝大部分 typst 的原生表达:
 - themes: 代码高亮文件
  
 = #embed("./article.typ", sidebar: "only_title", open: false)
-
+#text-align(center)[要不先来看看#cite-title("./example.typ")]
 
