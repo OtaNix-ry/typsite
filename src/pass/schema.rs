@@ -112,18 +112,18 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
             } else {
                 String::default()
             };
-            let references = ac_replace(
-                &&self.config.footer.references.body,
-                &[(REFERENCES_KEY, &references.body)],
-            );
-            footer.body = if has_references {
+            let references = if has_references {
                 ac_replace(
-                    footer_body,
-                    &[(REFERENCES_KEY, &references), (BACKLINKS_KEY, &backlinks)],
+                    &&self.config.footer.references.body,
+                    &[(REFERENCES_KEY, &references.body)],
                 )
             } else {
                 String::default()
             };
+            footer.body = ac_replace(
+                footer_body,
+                &[(REFERENCES_KEY, &references), (BACKLINKS_KEY, &backlinks)],
+            );
             footer
         } else {
             OutputHtml::empty()
