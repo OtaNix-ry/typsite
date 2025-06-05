@@ -16,7 +16,8 @@
   #html-text(size: 52pt, weight: "bold", fill: rgb("#22D3EE"))[Typst]
   \
   \
-  #html-text(size: 38pt, fill: rgb("#22D3EE"))[🔥*已经崛起了!*🔥] <rise-up>
+  #html-text(size: 38pt, fill: rgb("#22D3EE"))[🔥*已经崛起了!*🔥 <rise-up> ] 
+
   \
   \
 
