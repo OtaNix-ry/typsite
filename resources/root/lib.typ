@@ -270,7 +270,7 @@
 }
 
 
-#let cite_title(slug) = context {
+#let cite-title(slug) = context {
   if target() == "html" {
     box[
       #html.elem("rewrite", attrs: (id: "cite-with-title", slug: str(slug)))[]
