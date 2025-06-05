@@ -43,7 +43,7 @@ $
 
 点@amazing[我]能跳转到神奇的地方.
 
-点@rise-up[我]能跳转到 #html-text(fill: red)[**崛起**]!
+点@rise-up[我]能跳转到 #html-text(fill: red)[*崛起*]!
 
 == 好听的
 
