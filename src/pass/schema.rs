@@ -1,8 +1,8 @@
 use crate::config::TypsiteConfig;
 use crate::config::footer::{BACKLINKS_KEY, REFERENCES_KEY};
 use crate::config::schema::{BACKLINK_KEY, REFERENCE_KEY, Schema};
+use crate::ir::article::Article;
 use crate::ir::article::data::GlobalData;
-use crate::ir::article::{Article};
 use crate::util::error::TypsiteError;
 use crate::util::html::{Attributes, OutputHtml};
 use crate::util::html::{OutputHead, write_token};
@@ -78,7 +78,10 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
                 .filter_map(|article| article.get_backlink())
                 .collect::<Vec<_>>();
 
-            fn footer_component<'b, 'a: 'b>(
+            let has_references = !references.is_empty();
+            let has_backlinks = !backlinks.is_empty();
+
+            fn footer_component_html<'b, 'a: 'b>(
                 footer_body: &str,
                 key: &str,
                 component: Vec<&'b OutputHtml<'a>>,
@@ -95,21 +98,32 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
                 }
             }
 
-            let backlinks = footer_component(footer_body, BACKLINKS_KEY, backlinks);
-            let references = footer_component(footer_body, REFERENCES_KEY, references);
+            let backlinks = footer_component_html(footer_body, BACKLINKS_KEY, backlinks);
+            let references = footer_component_html(footer_body, REFERENCES_KEY, references);
 
             footer.head.extend(&references.head);
             footer.head.extend(&backlinks.head);
 
-            let backlinks = ac_replace(&self.config.footer.backlinks.body, &[(BACKLINKS_KEY,&backlinks.body)]);
-            let references = ac_replace(&&self.config.footer.references.body, &[(REFERENCES_KEY,&references.body)]);
-            footer.body = ac_replace(
-                footer_body,
-                &[
-                    (REFERENCES_KEY, &references),
-                    (BACKLINKS_KEY, &backlinks),
-                ],
+            let backlinks = if has_backlinks {
+                ac_replace(
+                    &self.config.footer.backlinks.body,
+                    &[(BACKLINKS_KEY, &backlinks.body)],
+                )
+            } else {
+                String::default()
+            };
+            let references = ac_replace(
+                &&self.config.footer.references.body,
+                &[(REFERENCES_KEY, &references.body)],
             );
+            footer.body = if has_references {
+                ac_replace(
+                    footer_body,
+                    &[(REFERENCES_KEY, &references), (BACKLINKS_KEY, &backlinks)],
+                )
+            } else {
+                String::default()
+            };
             footer
         } else {
             OutputHtml::empty()
