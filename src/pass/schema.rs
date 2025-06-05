@@ -114,7 +114,7 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
             };
             let references = if has_references {
                 ac_replace(
-                    &&self.config.footer.references.body,
+                    &self.config.footer.references.body,
                     &[(REFERENCES_KEY, &references.body)],
                 )
             } else {

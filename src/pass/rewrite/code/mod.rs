@@ -1,4 +1,4 @@
-use crate::{compile::compiler::compile_options, config::TypsiteConfig};
+use crate::{compile::proj_options, config::TypsiteConfig};
 use crate::pass::pure::PurePass;
 use crate::pass::rewrite::code::highlighter::highlight;
 use crate::pass::rewrite::*;
@@ -52,7 +52,7 @@ impl TagRewritePass for CodeBlockPass {
         let theme = attrs.get("theme")?;
         let content = attrs.get("content")?;
         let (light,dark) = config.themes.get(theme)?;
-        let fallback = &compile_options().options().code_fallback_style;
+        let fallback = &proj_options().unwrap().code_fallback_style;
         let light = highlight(lang, content, light, &fallback.light);
         let dark = highlight(lang, content, dark, &fallback.dark);
         Some(ac_replace(body, &[("{content-light}", &light),("{content-dark}",&dark)]))

@@ -1,6 +1,6 @@
+use crate::compile::compile_options;
 use crate::ir::metadata::Metadata;
 use crate::ir::pending::Pending;
-use crate::compile::compiler::{ compile_options};
 use crate::compile::registry::Key;
 use crate::compile::watch::WATCH_AUTO_RELOAD_SCRIPT;
 use crate::config::TypsiteConfig;
@@ -198,7 +198,7 @@ impl<'c, 'b: 'c, 'a: 'b> GlobalData<'a, 'b, 'c> {
                 head.push(self.config.anchor.goto.head.as_str());
             }
 
-            if compile_options().watch {
+            if compile_options().unwrap().watch {
                 head.push(WATCH_AUTO_RELOAD_SCRIPT.as_str());
             }
 

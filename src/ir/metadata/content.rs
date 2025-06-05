@@ -1,15 +1,15 @@
+use crate::compile::{compile_options, proj_options};
+use crate::compile::registry::Key;
+use crate::config::TypsiteConfig;
 use crate::ir::article::data::GlobalData;
 use crate::ir::article::dep::Indexes;
 use crate::ir::rewriter::{MetaRewriter, PureRewriter};
-use crate::compile::compiler::{compile_options, with_options};
-use crate::compile::registry::Key;
-use crate::config::TypsiteConfig;
 use crate::pass::pass_rewriter_meta;
 use crate::util::str::ac_replace_map;
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::{HashMap, HashSet};
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 pub const TITLE_KEY: &str = "title";
 pub const TITLE_REPLACEMENT: &str = "{title}";
@@ -43,18 +43,16 @@ impl<'b, 'a: 'b> MetaContents<'a> {
         MetaContents::new(slug, contents)
     }
 
-    pub fn get(&self, key: &str) -> Option<&str> {
+    pub fn get(&self, key: &str) -> Option<Arc<str>> {
         let content = self.contents.get(key).map(|c| c.get());
         content.or_else(|| {
-            with_options(|options| {
-                options
-                    .options()
-                    .default_metadata
-                    .content
-                    .default
-                    .get(key)
-                    .map(|it| it.as_str())
-            })
+            proj_options()
+                .unwrap()
+                .default_metadata
+                .content
+                .default
+                .get(key)
+                .cloned()
         })
     }
 
@@ -69,9 +67,9 @@ impl<'b, 'a: 'b> MetaContents<'a> {
                 .iter()
                 .map(|(k, v)| (format!("{{{k}}}"), v.get().to_string()))
                 .collect::<HashMap<_, _>>();
-
+            let compile_options = compile_options().unwrap();
             // Short slug
-            let slug_display = if compile_options().short_slug {
+            let slug_display = if compile_options.short_slug {
                 self.slug
                     .split('/')
                     .next_back()
@@ -82,7 +80,7 @@ impl<'b, 'a: 'b> MetaContents<'a> {
 
             map.insert("{slug_display}".to_string(), slug_display.to_string());
 
-            let slug = if !compile_options().pretty_url {
+            let slug = if !compile_options.pretty_url {
                 format!("{}.html", self.slug)
             } else {
                 self.slug.to_string()
@@ -95,17 +93,15 @@ impl<'b, 'a: 'b> MetaContents<'a> {
             map.insert("{has_parent}".to_string(), parent.to_string());
 
             // Add default meta contents
-            with_options(|options| {
-                options
-                    .options()
-                    .default_metadata
-                    .content
-                    .default
-                    .iter()
-                    .for_each(|(k, v)| {
-                        map.entry(format!("{{{k}}}")).or_insert(v.to_string());
-                    });
-            });
+            proj_options()
+                .unwrap()
+                .default_metadata
+                .content
+                .default
+                .iter()
+                .for_each(|(k, v)| {
+                    map.entry(format!("{{{k}}}")).or_insert(v.to_string());
+                });
             if !map.contains_key(PAGE_TITLE_REPLACEMENT) {
                 map.insert(
                     PAGE_TITLE_REPLACEMENT.to_string(),
@@ -185,7 +181,7 @@ pub struct MetaContent<'a> {
     content: Vec<String>,
     rewriters: Vec<MetaRewriter<'a>>,
     content_cache: OnceLock<Vec<String>>,
-    content_str: OnceLock<String>,
+    content_str: OnceLock<Arc<str>>,
 }
 
 impl<'b, 'a: 'b> MetaContent<'a> {
@@ -221,14 +217,17 @@ impl<'b, 'a: 'b> MetaContent<'a> {
         })
     }
 
-    fn get(&self) -> &str {
-        self.content_str.get_or_init(|| {
-            if let Some(body) = self.content_cache.get() {
-                body.join("")
-            } else {
-                self.content.join("")
-            }
-        })
+    fn get(&self) -> Arc<str> {
+        self.content_str
+            .get_or_init(|| {
+                let str = if let Some(body) = self.content_cache.get() {
+                    body.join("")
+                } else {
+                    self.content.join("")
+                };
+                Arc::from(str)
+            })
+            .clone()
     }
 }
 
@@ -263,7 +262,10 @@ impl PureMetaContent {
 impl From<MetaContent<'_>> for PureMetaContent {
     fn from(content: MetaContent<'_>) -> Self {
         Self::new(
-            content.content_cache.into_inner().unwrap_or(content.content),
+            content
+                .content_cache
+                .into_inner()
+                .unwrap_or(content.content),
             content
                 .rewriters
                 .into_iter()

@@ -1,50 +1,35 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
-use std::mem::transmute;
 use std::path::Path;
-
+#[derive(Debug)]
 pub struct CompileOptions {
     pub watch: bool,
     pub short_slug: bool,
     pub pretty_url: bool,
-    pub options: Option<Options>,
 }
 
-impl CompileOptions {
-    pub(crate) fn empty() -> CompileOptions {
-        CompileOptions {
-            watch: false,
-            short_slug: true,
-            pretty_url: true,
-            options: None,
-        }
-    }
-    pub fn options<'a>(&self) -> &'a Options {
-        unsafe { transmute(self.options.as_ref().unwrap()) } // TODO: Fix this unsafe code
-    }
-}
 
 pub const OPTIONS_PATH: &str = "options.toml";
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Options {
+#[derive(Debug, Deserialize)]
+pub struct ProjOptions {
     pub default_metadata: DefaultMetadata,
     pub typst_lib: TypstLib,
     pub code_fallback_style: CodeFallbackStyle,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct TypstLib {
     pub paths: HashSet<String>,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct DefaultMetadata {
     pub content: metadata::Content,
     pub options: metadata::Options,
     pub graph: metadata::Graph,
 }
 
-impl Options {
+impl ProjOptions {
     pub fn load(config_path: &Path) -> anyhow::Result<Self> {
         let content = fs::read_to_string(config_path.join(OPTIONS_PATH))?;
         let options: Self = toml::from_str(&content)?;
@@ -59,12 +44,12 @@ pub struct CodeFallbackStyle {
 pub mod metadata {
     use crate::ir::article::sidebar::{HeadingNumberingStyle, SidebarType};
     use serde::{Deserialize, Serialize};
-    use std::collections::HashMap;
+    use std::{collections::HashMap, sync::Arc};
 
-    #[derive(Debug, Deserialize, Serialize)]
+    #[derive(Debug, Deserialize)]
     pub struct Content {
-        #[serde(flatten, default = "HashMap::new")]
-        pub default: HashMap<String, String>,
+        #[serde(flatten, default = "HashMap::new", deserialize_with = "deserialize_meta_content")]
+        pub default: HashMap<String, Arc<str>>,
     }
     #[derive(Debug, Deserialize, Serialize)]
     pub struct Options {
@@ -98,5 +83,15 @@ pub mod metadata {
     {
         let s: String = Deserialize::deserialize(deserializer)?;
         Ok(if s.trim().is_empty() { None } else { Some(s) })
+    }
+    pub fn deserialize_meta_content<'de, D>(deserializer: D) -> Result<HashMap<String,Arc<str>>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: HashMap<String,String> = Deserialize::deserialize(deserializer)?;
+        let map = s.into_iter()
+            .map(|(key,value)| (key, Arc::from(value)))
+            .collect::<HashMap<String,Arc<str>>>();
+        Ok(map)
     }
 }

@@ -6,10 +6,9 @@ use crate::config::TypsiteConfig;
 use crate::pass::pure::{PurePass, PurePassData};
 use crate::util::html::Attributes;
 use anyhow::*;
-use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 
 mod cite;
 mod code;
@@ -18,10 +17,8 @@ mod metacontent;
 
 pub const METACONTENT_TAG: &str = "metacontent";
 
-lazy_static! {
-    static ref REWRITE_PASSES: Arc<Mutex<HashMap<String, Arc<dyn TagRewritePass>>>> =
-        Arc::new(Mutex::new(HashMap::new()));
-}
+    static REWRITE_PASSES: LazyLock<Arc<Mutex<HashMap<String, Arc<dyn TagRewritePass>>>>> =
+        LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 pub fn register_rewrite_pass(rewriter: impl TagRewritePass + 'static) {
     let tag = rewriter.id().to_string();

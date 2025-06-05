@@ -1,10 +1,10 @@
+use crate::compile::proj_options;
 use crate::ir::metadata::Metadata;
 use crate::ir::metadata::content::{MetaContent, MetaContents};
 use crate::ir::metadata::graph::MetaNode;
 use crate::ir::metadata::options::MetaOptions;
 use crate::ir::rewriter::MetaRewriter;
 use crate::ir::article::sidebar::{HeadingNumberingStyle, SidebarType};
-use crate::compile::compiler::compile_options;
 use crate::compile::registry::{Key, KeyRegistry};
 use crate::config::TypsiteConfig;
 use crate::pass::pure::rewriter::RewriterBuilder;
@@ -26,7 +26,7 @@ pub struct MetadataBuilder<'a> {
 
 impl<'a> MetadataBuilder<'a> {
     pub fn new(self_slug: Key, config: &'a TypsiteConfig, registry: &KeyRegistry) -> Self {
-        let options = &compile_options().options();
+        let options = proj_options().unwrap();
 
         let heading_numbering_style = options.default_metadata.options.heading_numbering;
         let sidebar_type = options.default_metadata.options.sidebar_type;

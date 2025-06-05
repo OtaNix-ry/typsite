@@ -6,13 +6,11 @@ use std::{
 
 use crate::{
     compile::{
-        cache::monitor::Monitor,
-        options::Options,
+        cache::monitor::Monitor, init_proj_options, options::ProjOptions, proj_options
     },
     config::TypsiteConfig,
 };
 
-use super::compile_options;
 
 pub type Paths = HashSet<PathBuf>;
 
@@ -72,7 +70,7 @@ pub fn initialize<'a>(
     if components_changed {
         println!("Components changed, reloading...");
     }
-    let lib_paths = &compile_options().options().typst_lib.paths;
+    let lib_paths = &proj_options()?.typst_lib.paths;
     let libs_changed = changed_typst_paths
         .iter()
         .chain(deleted_typst_paths.iter())
@@ -132,8 +130,7 @@ impl<'a> Input<'a> {
 }
 
 
-pub fn init_options_toml(config_path: &Path) -> Result<()> {
-    let new_options = Options::load(config_path)?;
-    compile_options().options = Some(new_options);
-    Ok(())
+fn init_options_toml(config_path: &Path) -> Result<()> {
+    let new_options = ProjOptions::load(config_path)?;
+    init_proj_options(new_options)
 }

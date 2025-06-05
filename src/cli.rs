@@ -54,7 +54,6 @@ impl Executor {
             watch: cmd.port != 0,
             short_slug: !cmd.no_short_slug,
             pretty_url: !cmd.no_pretty_url,
-            options: None,
         };
         let compiler = Compiler::new(config, cache_path, config_path, input_path, output_path)?;
         Ok(compiler)

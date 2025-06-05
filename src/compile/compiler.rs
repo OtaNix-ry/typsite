@@ -6,18 +6,15 @@ use crate::util::path::{file_ext, format_path};
 use analysis::*;
 use anyhow::*;
 use html_pass::pass_html;
-use initializer::{Input,  initialize};
-use lazy_static::lazy_static;
+use initializer::{Input, initialize};
 use output_sync::sync_files_to_output;
 use page_composer::{PageData, compose_pages};
 use std::collections::{HashMap, HashSet};
-use std::sync::{Mutex, MutexGuard};
-use std::{
-    path::PathBuf,
-    result::Result::Ok,
-};
+use std::path::PathBuf;
+use std::result::Result::Ok;
 use typst_pass::compile_typsts;
 
+use super::init_compile_options;
 use super::watch::watch;
 
 mod analysis;
@@ -27,21 +24,7 @@ mod output_sync;
 mod page_composer;
 mod typst_pass;
 
-lazy_static! {
-    pub static ref COMPILE_OPTIONS: Mutex<CompileOptions> = Mutex::new(CompileOptions::empty());
-}
-fn init_compile_options(config: CompileOptions) {
-    let mut guard = COMPILE_OPTIONS.lock().unwrap();
-    *guard = config;
-}
 
-pub fn compile_options() -> MutexGuard<'static, CompileOptions> {
-    COMPILE_OPTIONS.lock().unwrap()
-}
-pub fn with_options<T>(f: impl FnOnce(&CompileOptions) -> T) -> T {
-    let guard = COMPILE_OPTIONS.lock().unwrap();
-    f(&guard)
-}
 
 pub struct Compiler {
     typst_path: PathBuf,             // Typst root
@@ -59,7 +42,7 @@ impl Compiler {
         typst_path: PathBuf,
         output_path: PathBuf,
     ) -> Result<Self> {
-        init_compile_options(options);
+        init_compile_options(options)?;
         let cache_path = format_path(cache_path);
         let html_cache_path = cache_path.join("html");
         let config_path = format_path(config_path);
