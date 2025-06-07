@@ -14,7 +14,7 @@
     flake-utils,
     rust-overlay,
     ...
-  } @ inputs:
+  }:
     flake-utils.lib.eachDefaultSystem (
       system: let
         # Import nixpkgs with the rust-overlay
@@ -79,7 +79,6 @@
 
           packages = [
             rustToolchain # Provides rustc, cargo, clippy, rustfmt
-            pkgs.typst # Latest Typst from nixpkgs-unstable
             pkgs.rust-analyzer
 
             pkgs.pkg-config
