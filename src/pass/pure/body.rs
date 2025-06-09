@@ -1,7 +1,7 @@
+use crate::compile::error::TypError;
 use crate::ir::embed::Embed;
 use crate::ir::rewriter::BodyRewriter;
 use crate::ir::article::sidebar::{SidebarIndex, SidebarPos};
-use crate::pass::error::TypError;
 use crate::pass::pure::PurePassData;
 use crate::pass::pure::embed::EmbedBuilder;
 use crate::pass::pure::rewriter::RewriterBuilder;

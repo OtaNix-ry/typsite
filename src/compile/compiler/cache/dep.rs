@@ -3,7 +3,7 @@ use crate::config::TypsiteConfig;
 use crate::ir::article::dep::UpdatedIndex;
 use crate::ir::article::Article;
 use crate::util::error::{log_err, log_err_or_ok};
-use crate::util::fs::write_into_file;
+use crate::util::fs::{remove_file, write_into_file};
 use crate::util::path::relative_path;
 use crate::walk_glob;
 use anyhow::*;
@@ -34,7 +34,7 @@ impl<'a> RevDeps {
             .map(|path| {
                 let mut path = path.clone();
                 path.add_extension("dep");
-                std::fs::remove_file(path)
+                remove_file(path, "dependency")
             })
             .for_each(log_err);
 
@@ -124,7 +124,7 @@ impl<'a> RevDeps {
                 let content = serde_json::to_string(&dep).context("Failed to serialize dep")?;
                 let mut dep_path = self.deps_path.join(path.as_ref());
                 dep_path.add_extension("dep");
-                write_into_file(dep_path, &content).context("Failed to write dep file")
+                write_into_file(dep_path, &content,"dependency")
             })
             .for_each(log_err);
     }

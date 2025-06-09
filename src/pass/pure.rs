@@ -6,7 +6,7 @@ use crate::ir::article::Article;
 use crate::ir::article::body::Body;
 use crate::ir::article::dep::{Dependency, Source, UpdatedIndex};
 use crate::ir::article::sidebar::{Pos, Sidebar, SidebarPos};
-use crate::ir::embed::SectionType;
+use crate::ir::embed::{EmbedVariables, SectionType};
 use crate::ir::pending::{AnchorData, AnchorKind};
 use crate::ir::rewriter::RewriterType;
 use crate::pass::pure::body::BodyBuilder;
@@ -24,7 +24,7 @@ use html5gum::{StringReader, Tokenizer as HtmlTokenizer};
 use std::collections::{HashMap, HashSet};
 use std::{path::Path, result::Result::Ok};
 
-use super::error::{TypError, TypResult};
+use crate::compile::error::{TypError, TypResult};
 use super::tokenizer::{
     BodyTag, Event, EventTokenizer, HeadTag, Label, PeekableTokenizer, Tokenizer,
 };
@@ -319,8 +319,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
                 let schema = self
                     .config
                     .schemas
-                    .get(schema.as_str())
-                    .context(format!("No schema named {schema}"))?;
+                    .get(schema.as_str())?;
                 self.schema = Some(schema);
                 self.skip = Some("schema".to_string());
             }
@@ -378,11 +377,12 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
             BodyTag::Embed {
                 slug,
                 open,
+                variables,
                 sidebar,
                 heading_level,
             } => {
                 self.push_section_ends_if_needed(heading_level);
-                self.push_embed(slug, open, sidebar, heading_level)?;
+                self.push_embed(slug, open,variables, sidebar, heading_level)?;
             }
 
             BodyTag::AnchorGoto { id } => {
@@ -594,6 +594,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         &mut self,
         url: String,
         open: bool,
+        variables: EmbedVariables,
         sidebar: String,
         heading_level: usize,
     ) -> Result<()> {
@@ -626,6 +627,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         self.body.push_embed(EmbedBuilder::new(
             slug.clone(),
             open,
+            variables,
             full_sidebar_pos,
             embed_sidebar_pos,
             section_type,

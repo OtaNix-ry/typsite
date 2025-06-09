@@ -114,7 +114,7 @@ impl<'a> TypsiteConfig<'a> {
                     .and_then(|rule| self.rules.get(rule))
                     .and_then(|rule| rule.path.clone()),
                 path_str if path_str.starts_with(SCHEMAS_DIR) => file_stem(path)
-                    .and_then(|schema| self.schemas.get(schema).map(|schema| schema.path.clone())),
+                    .and_then(|schema| self.schemas.get(schema).ok().map(|schema| schema.path.clone())),
                 path_str if path_str.starts_with(THEMES_DIR) => file_stem(path)
                     .and_then(|theme| self.themes.path_exactly(theme))
                     .cloned(),

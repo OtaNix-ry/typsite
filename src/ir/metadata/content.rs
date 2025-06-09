@@ -1,5 +1,6 @@
-use crate::compile::{compile_options, proj_options};
+use crate::compile::error::{TypError, TypResult};
 use crate::compile::registry::Key;
+use crate::compile::{compile_options, proj_options};
 use crate::config::TypsiteConfig;
 use crate::ir::article::data::GlobalData;
 use crate::ir::article::dep::Indexes;
@@ -13,7 +14,7 @@ use std::sync::{Arc, OnceLock};
 
 pub const TITLE_KEY: &str = "title";
 pub const TITLE_REPLACEMENT: &str = "{title}";
-pub const PAGE_TITLE_REPLACEMENT: &str = "{page_title}";
+pub const PAGE_TITLE_REPLACEMENT: &str = "{page-title}";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MetaContents<'a> {
@@ -34,13 +35,22 @@ impl<'b, 'a: 'b> MetaContents<'a> {
         }
     }
 
-    pub fn from(slug: Key, pure: PureMetaContents, config: &'a TypsiteConfig) -> MetaContents<'a> {
+    pub fn from(
+        self_slug: Key,
+        pure: PureMetaContents,
+        config: &'a TypsiteConfig,
+    ) -> TypResult<MetaContents<'a>> {
+        let mut err = TypError::new(self_slug.clone());
         let contents = pure
             .contents
             .into_iter()
-            .map(|(k, v)| (k, MetaContent::from(&slug, v, config)))
+            .filter_map(|(meta_key, content)| {
+                let result = MetaContent::from(&self_slug, &meta_key, content, config)
+                    .map(|content| (meta_key, content));
+                err.ok_typ(result)
+            })
             .collect();
-        MetaContents::new(slug, contents)
+        err.err_or(|| MetaContents::new(self_slug, contents)) 
     }
 
     pub fn get(&self, key: &str) -> Option<Arc<str>> {
@@ -78,6 +88,7 @@ impl<'b, 'a: 'b> MetaContents<'a> {
                 self.slug.as_str()
             };
 
+            map.insert("{slug-display}".to_string(), slug_display.to_string());
             map.insert("{slug_display}".to_string(), slug_display.to_string());
 
             let slug = if !compile_options.pretty_url {
@@ -90,6 +101,7 @@ impl<'b, 'a: 'b> MetaContents<'a> {
 
             map.insert("{slug@anchor}".to_string(), slug[1..].to_string());
 
+            map.insert("{has-parent}".to_string(), parent.to_string());
             map.insert("{has_parent}".to_string(), parent.to_string());
 
             // Add default meta contents
@@ -194,14 +206,22 @@ impl<'b, 'a: 'b> MetaContent<'a> {
         }
     }
 
-    fn from(slug: &Key, pure: PureMetaContent, config: &'a TypsiteConfig) -> MetaContent<'a> {
-        Self::new(
-            pure.body,
-            pure.rewriters
-                .into_iter()
-                .filter_map(|atom| MetaRewriter::from(slug.as_str(), atom, config))
-                .collect(),
-        )
+    fn from(
+        self_slug: &Key,
+        meta_key: &str,
+        pure: PureMetaContent,
+        config: &'a TypsiteConfig,
+    ) -> TypResult<MetaContent<'a>> {
+        let mut err = TypError::new(self_slug.clone());
+        let rewriters = pure
+            .rewriters
+            .into_iter()
+            .map(|rewriter| err.ok(MetaRewriter::from(self_slug, meta_key, rewriter, config)))
+            .collect::<Vec<Option<_>>>();
+        err.err_or(move || {
+            let rewriters = rewriters.into_iter().flatten().collect();
+            Self::new(pure.body, rewriters)
+        })
     }
 
     fn pass_body<'c>(
@@ -337,7 +357,7 @@ mod tests {
         let contents = [
             ("title".to_string(), plain("Test")),
             ("taxon".to_string(), plain("test")),
-            ("page_title".to_string(), plain("Test")),
+            ("page-title".to_string(), plain("Test")),
             ("date".to_string(), plain("2024-10-20")),
             ("author".to_string(), plain("Glom")),
         ]

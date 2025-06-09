@@ -1,10 +1,12 @@
+use crate::compile::compiler::ErrorArticles;
+use crate::compile::error::{TypError, TypResult};
 use crate::compile::registry::{Key, KeyRegistry};
 use crate::config::TypsiteConfig;
 use crate::ir::article::{Article, PureArticle};
 use crate::util::error::{log_err, log_err_or_ok};
-use crate::util::fs::write_into_file;
+use crate::util::fs::{remove_file_unwrap, write_into_file};
 use crate::walk_glob;
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use glob::glob;
 use rayon::prelude::*;
 use std::collections::hash_map::Drain;
@@ -29,7 +31,7 @@ impl<'a> ArticleCache<'a> {
         config: &'a TypsiteConfig,
         deleted: &HashSet<PathBuf>,
         registry: &mut KeyRegistry,
-    ) {
+    ) -> ErrorArticles {
         let deleted_json = deleted
             .iter()
             .map(|path| path.with_extension("json"))
@@ -48,31 +50,73 @@ impl<'a> ArticleCache<'a> {
             })
             .filter_map(log_err_or_ok)
             .collect::<Vec<PureArticle>>();
-
-        self.insert_batch(config, pures, registry);
-
         deleted_json.into_par_iter().for_each(|path| {
-            let _ = std::fs::remove_file(&path);
+            remove_file_unwrap(&path, "cache article");
         });
-    }
-
-    fn insert_batch(
-        &mut self,
-        config: &'a TypsiteConfig,
-        pures: Vec<PureArticle>,
-        registry: &mut KeyRegistry,
-    ) {
         registry.register_paths(config, pures.iter().map(|pure| pure.path.as_path()));
-        let registry: &KeyRegistry = registry;
-        let articles: Vec<(Key, Article<'a>)> = pures
+
+        let registry: &mut KeyRegistry = registry;
+        let (articles, failed): (Vec<TypResult<_>>, Vec<TypResult<_>>) = pures
             .into_iter()
             .par_bridge()
-            .map(|pure| {
-                let article = Article::from(pure, config, registry);
-                (article.slug.clone(), article)
-            })
+            .map(|pure| Article::from(pure, config, registry))
+            .collect::<Vec<TypResult<_>>>()
+            .into_iter()
+            .partition(|it| it.is_ok());
+
+        let articles: Vec<(Key, Article<'a>)> = articles
+            .into_iter()
+            .filter_map(|it| it.ok().map(|article| (article.slug.clone(), article)))
             .collect();
         self.cache.extend(articles);
+        let failed = failed
+            .into_iter()
+            .filter_map(|it| it.err())
+            .collect::<Vec<_>>();
+
+        let mut error_articles = HashMap::new();
+        fn errors(
+            cache: &mut HashMap<Key, Article<'_>>,
+            registry: &mut KeyRegistry,
+            error_articles: &mut HashMap<Key, (PathBuf, TypError)>,
+            failed: Vec<TypError>,
+        ) {
+            failed.into_iter().for_each(|err| {
+                let slug = err.slug.clone();
+                let path = registry.path(&slug).unwrap().to_path_buf();
+                registry.remove_slug(&slug);
+                error_articles.insert(slug, (path, err));
+            });
+            let failed = cache
+                .iter()
+                .filter_map(|(slug, article)| {
+                    let errors: Vec<_> = error_articles
+                        .keys()
+                        .filter_map(|slug| {
+                            if article.get_depending_articles().contains(slug) {
+                                Some(anyhow!("Article {slug} not found"))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    if errors.is_empty() {
+                        None
+                    } else {
+                        Some(TypError::new_with(slug.clone(), errors))
+                    }
+                })
+                .collect::<Vec<_>>();
+            let _ = failed.iter().filter_map(|err| cache.remove(&err.slug));
+            if !failed.is_empty() {
+                errors(cache, registry, error_articles, failed);
+            }
+        }
+        errors(&mut self.cache, registry, &mut error_articles, failed);
+        error_articles
+            .into_iter()
+            .map(|(_, (path, err))| (path, format!("{err}")))
+            .collect()
     }
 
     #[allow(clippy::type_complexity)]
@@ -96,7 +140,7 @@ impl<'a> ArticleCache<'a> {
             .collect::<Vec<(PathBuf, String)>>()
             .into_iter()
             .par_bridge()
-            .map(|(path, json)| write_into_file(path, &json))
+            .map(|(path, json)| write_into_file(path, &json, "cache article"))
             .for_each(log_err);
         Ok(())
     }

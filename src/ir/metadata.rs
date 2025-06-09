@@ -2,11 +2,12 @@ pub mod content;
 pub mod graph;
 pub mod options;
 
+use crate::compile::error::TypResult;
+use crate::compile::registry::{Key, KeyRegistry};
+use crate::config::TypsiteConfig;
 use crate::ir::metadata::content::{MetaContents, PureMetaContents};
 use crate::ir::metadata::graph::{MetaNode, PureMetaNode};
 use crate::ir::metadata::options::MetaOptions;
-use crate::compile::registry::{Key, KeyRegistry};
-use crate::config::TypsiteConfig;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -22,15 +23,15 @@ impl<'a> Metadata<'a> {
         pure: PureMetadata,
         config: &'a TypsiteConfig,
         registry: &KeyRegistry,
-    ) -> Metadata<'a> {
-        let contents = MetaContents::from(slug.clone(), pure.contents, config);
+    ) -> TypResult<Metadata<'a>> {
+        let contents = MetaContents::from(slug.clone(), pure.contents, config)?;
         let options = pure.options;
-        let node = MetaNode::from(slug, pure.node, registry);
-        Metadata {
+        let node = MetaNode::from(slug, pure.node, registry)?;
+        Ok(Metadata {
             contents,
             options,
             node,
-        }
+        })
     }
 
     pub fn inline(&self, html: &str) -> String {

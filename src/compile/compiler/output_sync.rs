@@ -1,6 +1,7 @@
-use crate::compile::cache::monitor::Monitor;
+use super::ErrorArticles;
+use super::cache::monitor::Monitor;
 use crate::util::error::log_err;
-use crate::util::fs::write_into_file;
+use crate::util::fs::{remove_file, write_into_file};
 use crate::util::path::relative_path;
 use anyhow::{Ok, *};
 use rayon::prelude::*;
@@ -20,12 +21,22 @@ pub fn sync_files_to_output(
     html_cache_path: &Path,
     output_path: &Path,
     output: Output,
-    error_articles: Vec<(PathBuf, String)>,
+    proj_options_errors: Vec<String>,
+    error_typst_articles: ErrorArticles,
+    error_cache_articles: ErrorArticles,
+    error_pending_articles: ErrorArticles,
+    error_page_articles: ErrorArticles,
     changed_non_typst: HashSet<PathBuf>,
     deleted_non_typst: HashSet<PathBuf>,
     changed_assets: HashSet<PathBuf>,
     deleted_assets: HashSet<PathBuf>,
 ) {
+    if !proj_options_errors.is_empty() {
+        println!(
+            "Project options.toml errors:\n    {}",
+            proj_options_errors.join("\n    ")
+        );
+    }
     println!("Output:");
     sync_files(
         typst_path,
@@ -35,13 +46,12 @@ pub fn sync_files_to_output(
     );
     sync_files(assets_path, output_path, changed_assets, deleted_assets);
     write_pages(typst_path, output_path, output);
-    delete_error(
-        monitor,
-        error_articles,
-        html_cache_path,
-        typst_path,
-        output_path,
-    );
+    let mut errors = Vec::new();
+    errors.extend(error_typst_articles);
+    errors.extend(error_cache_articles);
+    errors.extend(error_pending_articles);
+    errors.extend(error_page_articles);
+    delete_errors(monitor, errors, html_cache_path, typst_path, output_path);
 }
 
 fn write_pages(typst_path: &Path, output_path: &Path, output: Output) {
@@ -56,7 +66,7 @@ fn write_pages(typst_path: &Path, output_path: &Path, output: Output) {
             } else {
                 println!("  + {output_path:#?}");
             }
-            write_into_file(output_path, &html.to_html())
+            write_into_file(output_path, &html.to_html(), "")
         })
         .for_each(log_err);
 }
@@ -93,16 +103,16 @@ fn copy_to_output(parent: &Path, file: &Path, output_path: &Path) -> Result<()> 
 fn delete_output(parent: &Path, file: &Path, output_path: &Path) -> Result<()> {
     let file_path =
         relative_path(parent, file).context(format!("Remove file {file:#?} failed."))?;
-    let output_path = output_path.join(&file_path);
-    if !output_path.exists() {
-        println!("  ? {output_path:#?}");
+    let output = output_path.join(&file_path);
+    if !output.exists() {
+        println!("  ? {output:#?}");
         return Ok(());
     }
-    fs::remove_file(&output_path).context(format!("Remove file {output_path:#?} failed."))?;
-    println!("  - {output_path:#?}");
+    remove_file(&output, "output")?;
+    println!("  - {output:#?}");
     // check if the dir is empty, if it is, delete the dir
-    let mut parent = output_path.parent().unwrap();
-    while parent != output_path {
+    let mut parent = output.parent().unwrap();
+    while parent != output {
         if fs::read_dir(parent)?.next().is_none() {
             fs::remove_dir(parent)?;
             parent = parent.parent().unwrap();
@@ -113,19 +123,20 @@ fn delete_output(parent: &Path, file: &Path, output_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn delete_error(
+fn delete_errors(
     monitor: Monitor,
-    error: Vec<(PathBuf, String)>,
+    errors: ErrorArticles,
     html_cache_path: &Path,
     typst_path: &Path,
     output_path: &Path,
 ) {
-    error
+    errors
         .into_iter()
-        .map(|(path, error)| {
-            monitor.delete_html_cache(&path);
-            let typ_path = relative_path(html_cache_path, &path)?;
-            let result = delete_output(typst_path, &typ_path, output_path);
+        .map(|(mut path, error)| {
+            monitor.delete_cache(&path,html_cache_path);
+            path.set_extension("html");
+            let html_path = relative_path(html_cache_path, &path).unwrap_or(path);
+            let result = delete_output(typst_path, &html_path, output_path);
             println!("{error}");
             result
         })

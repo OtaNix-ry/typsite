@@ -1,19 +1,18 @@
-use crate::ir::article::data::GlobalData;
-use crate::ir::article::dep::Indexes;
-use crate::ir::article::Article;
-use crate::ir::embed::Embed;
-use crate::ir::pending::Pending;
-use crate::ir::rewriter::{BodyRewriter, MetaRewriter};
+use crate::compile::error::TypResult;
 use crate::compile::registry::{Key, KeyRegistry, SlugPath};
 use crate::config::TypsiteConfig;
 use crate::config::schema::Schema;
+use crate::ir::article::Article;
+use crate::ir::article::data::GlobalData;
+use crate::ir::article::dep::Indexes;
+use crate::ir::embed::Embed;
+use crate::ir::pending::Pending;
+use crate::ir::rewriter::{BodyRewriter, MetaRewriter};
 use crate::pass::pending::PendingPass;
 use crate::pass::pure::PurePass;
 use crate::pass::rewrite::RewritePass;
 use crate::pass::schema::SchemaPass;
 use crate::util::html::OutputHtml;
-use anyhow::*;
-use error::TypResult;
 use html5gum::Tokenizer as HtmlTokenizer;
 
 mod pending;
@@ -21,9 +20,6 @@ pub mod pure;
 pub mod rewrite;
 mod schema;
 pub mod tokenizer;
-pub mod error;
-
-
 
 pub fn pass_pure<'b, 'a: 'b, 'k, 'c>(
     config: &'a TypsiteConfig,
@@ -74,6 +70,6 @@ pub fn pass_schema<'c, 'b: 'c, 'a: 'b>(
     content: &str,
     sidebar: &str,
     global_data: &'c GlobalData<'a, 'b, 'c>,
-) -> Result<OutputHtml<'a>> {
+) -> TypResult<OutputHtml<'a>> {
     SchemaPass::new(config, schema, article, content, sidebar, global_data).run()
 }

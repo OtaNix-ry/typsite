@@ -13,11 +13,18 @@ pub fn create_all_parent_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn write_into_file(path: PathBuf, content: &str) -> anyhow::Result<()> {
+pub fn write_into_file(path: PathBuf, content: &str, source: &str) -> anyhow::Result<()> {
     create_all_parent_dir(&path)?;
     fs::write(&path, content)
         .map_err(TypsiteError::Io)
-        .context(format!("Failed to write file {path:?}"))
+        .context(format!("Failed to write {source} {path:?}"))
+}
+
+pub fn remove_file<P: AsRef<Path>>(path: P, source: &str) -> anyhow::Result<()> {
+    std::fs::remove_file(path.as_ref()).context(format!("Failed to remove {source}: {:?}",path.as_ref()))
+}
+pub fn remove_file_unwrap<P: AsRef<Path>>(path: P, source: &str) {
+    remove_file(path, source).unwrap_or_else(|err| eprintln!("[WARN] {err}"));
 }
 
 #[macro_export]

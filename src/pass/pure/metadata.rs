@@ -1,12 +1,12 @@
 use crate::compile::proj_options;
+use crate::compile::registry::{Key, KeyRegistry};
+use crate::config::TypsiteConfig;
+use crate::ir::article::sidebar::{HeadingNumberingStyle, SidebarType};
 use crate::ir::metadata::Metadata;
 use crate::ir::metadata::content::{MetaContent, MetaContents};
 use crate::ir::metadata::graph::MetaNode;
 use crate::ir::metadata::options::MetaOptions;
 use crate::ir::rewriter::MetaRewriter;
-use crate::ir::article::sidebar::{HeadingNumberingStyle, SidebarType};
-use crate::compile::registry::{Key, KeyRegistry};
-use crate::config::TypsiteConfig;
 use crate::pass::pure::rewriter::RewriterBuilder;
 use std::collections::{HashMap, HashSet};
 
@@ -37,9 +37,12 @@ impl<'a> MetadataBuilder<'a> {
             .as_ref()
             .and_then(|parent| {
                 let parent = config.format_slug(parent);
-                registry.know(parent, "default_metadata.graph.parent", "options.toml")
+                registry
+                    .know(parent, "default_metadata.graph.parent", "options.toml")
+                    .ok()
             })
             .filter(|parent| parent.as_str() != self_slug.as_str());
+
         Self {
             slug: self_slug,
             meta_key: None,
@@ -79,14 +82,14 @@ impl<'a> MetadataBuilder<'a> {
 
     pub fn set_options(&mut self, key: String, value: String) {
         match key.as_str() {
-            "heading_numbering" => {
+            "heading_numbering" | "heading-numbering" => {
                 self.heading_numbering_style = HeadingNumberingStyle::from(value.as_ref());
             }
             "sidebar" => {
                 self.sidebar_type = SidebarType::from(value.as_ref());
             }
             _ => {
-                println!("Unknown metadata option: {key}");
+                println!("[WARN] Unknown metadata option: {key}");
             }
         }
     }

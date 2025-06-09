@@ -15,7 +15,7 @@ pub const WATCH_AUTO_RELOAD_SCRIPT: &str = r"
       if (await res.text() === '1') {
         location.reload()
       }
-    }, 1000)
+    }, 500)
   </script>
 ";
 
@@ -49,7 +49,7 @@ pub async fn watch(compiler: Compiler, port: u16) -> Result<()> {
 
 async fn compile_task(compiler: Compiler, reload_sender: Sender<()>) {
     loop {
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_millis(500)).await;
         let result = compiler.compile();
         if let Ok(true) = result {
             let _ = reload_sender.try_send(());

@@ -1,11 +1,12 @@
-use anyhow::{ *};
+use anyhow::*;
 use std::collections::BTreeMap;
 use std::result::Result::Ok;
 
-use std::{borrow::Cow, iter::Peekable};
+use std::iter::Peekable;
 
 use html5gum::{HtmlString, StartTag, StringReader, Token};
 
+use crate::ir::embed::EmbedVariables;
 use crate::util::html::{Attributes, html_as_str};
 
 pub trait Label {
@@ -61,6 +62,7 @@ pub enum BodyTag {
     Embed {
         slug: String,
         open: bool,
+        variables: EmbedVariables,
         sidebar: String,
         heading_level: usize,
     },
@@ -238,19 +240,18 @@ fn emit_body_next(
                         match peek {
                             Token::StartTag(peek) if html_as_str(&peek.name) == EMBED_KEY => {
                                 let _ = tokenizer.tokenizer.next();
-                                let attrs = Attributes::new(peek.attributes);
+                                let mut attrs = Attributes::new(peek.attributes);
                                 let slug = attrs
-                                    .get("slug")
+                                    .take("slug")
                                     .context("Embed: expect slug attribute")?
                                     .to_string();
-                                let open = attrs.get("open").map(|v| v == "true").unwrap_or(false);
-                                let sidebar = attrs
-                                    .get("sidebar")
-                                    .unwrap_or(Cow::from("full"))
-                                    .to_string();
+                                let open = attrs.take("open").map(|v| v == "true").unwrap_or(false);
+                                let sidebar = attrs.take("sidebar").unwrap_or("full".to_string());
+                                let variables = attrs.into_variables();
                                 BodyTag::Embed {
                                     slug,
                                     open,
+                                    variables,
                                     sidebar,
                                     heading_level,
                                 }
@@ -270,23 +271,25 @@ fn emit_body_next(
                     BodyTag::Rewrite { tag, attrs }
                 }
                 EMBED_KEY => {
-                    let attrs = Attributes::new(start_tag.attributes);
+                    let mut attrs = Attributes::new(start_tag.attributes);
+                    let heading_level = attrs
+                        .take("heading_level")
+                        .unwrap_or("1".to_string())
+                        .parse()?;
                     let slug = attrs
-                        .get("slug")
+                        .take("slug")
                         .context("Embed: expect slug attribute")?
                         .to_string();
-                    let open = attrs.get("open").map(|v| v == "true").unwrap_or(false);
+                    let open = attrs.take("open").map(|v| v == "true").unwrap_or(false);
                     let sidebar = attrs
-                        .get("sidebar")
-                        .unwrap_or(Cow::from("full"))
+                        .take("sidebar")
+                        .unwrap_or("full".to_string())
                         .to_string();
-                    let heading_level = attrs
-                        .get("heading_level")
-                        .unwrap_or(Cow::from("1"))
-                        .parse()?;
+                    let variables = attrs.into_variables();
                     BodyTag::Embed {
                         slug,
                         open,
+                        variables,
                         sidebar,
                         heading_level,
                     }
@@ -342,13 +345,15 @@ const VIEW_BOX_KEY: &[u8] = b"viewBox";
 const VIEW_BOX_VALUE: &[u8] = b"0, 0, 100%, 100%";
 const PT_OVER_PX: f64 = 3.0 / 4.0;
 
-fn scale(attrs:&mut BTreeMap<HtmlString, HtmlString>,key:&[u8],ratio:f64) -> Result<()> {
-    let origin = attrs.get(key).context(format!("Expect an attribute of {key:#?} in auto-svg tag"))?;
+fn scale(attrs: &mut BTreeMap<HtmlString, HtmlString>, key: &[u8], ratio: f64) -> Result<()> {
+    let origin = attrs
+        .get(key)
+        .context(format!("Expect an attribute of {key:#?} in auto-svg tag"))?;
     let origin = html_as_str(origin).to_string();
-    if !origin.ends_with("pt"){
-        return Err(anyhow!("Cannot pass {key:#?} using units other than pt"))
+    if !origin.ends_with("pt") {
+        return Err(anyhow!("Cannot pass {key:#?} using units other than pt"));
     }
-    let origin = origin[0..origin.len()-2].parse::<f64>()?;
+    let origin = origin[0..origin.len() - 2].parse::<f64>()?;
     let result = origin * ratio * PT_OVER_PX;
     let result = format!("{result}pt");
     attrs.insert(key.to_vec().into(), result.as_bytes().to_vec().into());
@@ -362,10 +367,9 @@ fn emit_other_start(
     match name.as_str() {
         "span" if matches!(start_tag.attributes.get(CLASS_KEY),Some(class) if class == &AUTO_SVG_KEY) =>
         {
-            let scale = start_tag
-                .attributes
-                .get(SCALE_KEY)
-                .context(format!("Expect an attribute of {SCALE_KEY:#?} in auto-svg tag"))?;
+            let scale = start_tag.attributes.get(SCALE_KEY).context(format!(
+                "Expect an attribute of {SCALE_KEY:#?} in auto-svg tag"
+            ))?;
             let scale = html_as_str(scale).to_string();
             let scale = scale[0..scale.len() - 1].parse::<f64>()? / 100.0;
             state.auto_svg = Some(scale)

@@ -1,10 +1,11 @@
-use crate::ir::embed::{Embed, SectionType};
-use crate::ir::article::sidebar::{SidebarIndex, SidebarPos};
 use crate::compile::registry::Key;
+use crate::ir::article::sidebar::{SidebarIndex, SidebarPos};
+use crate::ir::embed::{Embed, EmbedVariables, SectionType};
 
 pub struct EmbedBuilder {
     slug: Key,
     open: bool,
+    variables: EmbedVariables,
     full_sidebar_pos: SidebarPos,
     embed_sidebar_pos: SidebarPos,
     section_type: SectionType,
@@ -15,6 +16,7 @@ impl EmbedBuilder {
     pub fn new(
         slug: Key,
         open: bool,
+        variables: EmbedVariables,
         full_sidebar_pos: SidebarPos,
         embed_sidebar_pos: SidebarPos,
         section_type: SectionType,
@@ -23,6 +25,7 @@ impl EmbedBuilder {
         Self {
             slug,
             open,
+            variables,
             full_sidebar_pos,
             embed_sidebar_pos,
             section_type,
@@ -40,6 +43,7 @@ impl EmbedBuilder {
         Embed::new(
             self.slug,
             self.open,
+            self.variables,
             self.section_type,
             self.full_sidebar_pos,
             full_index,

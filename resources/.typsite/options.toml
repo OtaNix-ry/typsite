@@ -4,7 +4,8 @@ title = "Untitled"
 taxon = ""
 date = "Unknown Date"
 author = "Unknown Author"
-test = "TEST!!!!ddddd"
+sidebar = "true"
+show-metadata = "true"
 [default_metadata.options]
 heading_numbering = "Bullet" # Bullet | Roman | Alphabet | None
 [default_metadata.graph]

@@ -1,5 +1,8 @@
+use crate::compile::registry::Key;
 use crate::ir::article::sidebar::SidebarIndex;
 use crate::config::TypsiteConfig;
+use anyhow::*;
+use std::result::Result::Ok;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -35,14 +38,14 @@ impl<'a> BodyRewriter<'a> {
         }
     }
     pub fn from(
-        self_slug: &str,
+        self_slug: Key,
         pure: PureRewriter,
         config: &'a TypsiteConfig,
-    ) -> Option<BodyRewriter<'a>> {
+    ) -> Result<BodyRewriter<'a>> {
         let id = pure.id.as_str();
         let rewriter = config.rules.rule_name(id);
         if let Some(id) = rewriter {
-            Some(BodyRewriter {
+            Ok(BodyRewriter {
                 id,
                 rewriter_type: pure.rewriter_type,
                 attributes: pure.attributes,
@@ -50,8 +53,7 @@ impl<'a> BodyRewriter<'a> {
                 body_index: pure.body_index,
             })
         } else {
-            eprintln!("[WARN] Rewriter not found: {id} in {self_slug}, skip this rewriter.");
-            None
+            Err(anyhow!("Rewriter not found: {id} in {self_slug}, skip this rewriter."))
         }
     }
 }
@@ -80,21 +82,21 @@ impl<'a> MetaRewriter<'a> {
     }
     pub fn from(
         self_slug: &str,
+        meta_key: &str,
         pure: PureRewriter,
         config: &'a TypsiteConfig,
-    ) -> Option<MetaRewriter<'a>> {
+    ) -> Result<MetaRewriter<'a>> {
         let id = pure.id.as_str();
         let rewriter = config.rules.rule_name(id);
         if let Some(id) = rewriter {
-            Some(MetaRewriter {
+            Ok(MetaRewriter {
                 id,
                 rewriter_type: pure.rewriter_type,
                 attributes: pure.attributes,
                 body_index: pure.body_index,
             })
         } else {
-            eprintln!("[WARN] Rewriter not found: {id} in {self_slug}, skip this meta rewriter.");
-            None
+            Err(anyhow!("Rewriter not found: {id} in metacontent {meta_key} in {self_slug}, skip this rewriter."))
         }
     }
 }

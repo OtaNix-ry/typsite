@@ -2,15 +2,26 @@
 
 // Utils
 
+#let bool-to-str(val) = {
+  if val {
+    "true"
+  } else {
+    "false"
+  }
+}
+
 #let to-string(content) = {
   if type(content) == none {
     return ""
+  }
+  if type(content) == bool {
+    return bool-to-str(content)
   }
   if type(content) == str {
     return content
   }
   if content.has("text") {
-    if type(content.text) == "string" {
+    if type(content.text) == str {
       content.text
     } else {
       to-string(content.text)
@@ -26,13 +37,6 @@
   }
 }
 
-#let bool_to_str(val) = {
-  if val {
-    "true"
-  } else {
-    "false"
-  }
-}
 
 #let text-align(alignment, content) = context {
   if target() != "html" {
@@ -46,17 +50,15 @@
   html.elem("div", attrs: (style: "text-align: " + horizontally + ";"))[#content]
 }
 
-#let typst_scale = scale
+#let typst-scale = scale
 
 
 #let inline-content = state("inline-content", false)
 
-
-
 #let inline(scale: 100%, alignment: none, fill: none, content) = {
   context {
     let content = if fill != none { block(content, fill: fill) } else { content }
-    let content = typst_scale(scale, origin: left + top, content)
+    let content = typst-scale(scale, origin: left + top, content)
     if target() != "html" {
       return align(alignment, content)
     }
@@ -96,7 +98,7 @@
 
 #let inline_math(body, block: bool, scale: 100%) = {
   if block {
-    html.elem("div", attrs: (class:"math-container"))[
+    html.elem("div", attrs: (class: "math-container"))[
       #html.elem("span", attrs: (class: "math-block", content: to-string(body)))[
         #inline(scale: scale)[#body]
       ]
@@ -113,7 +115,7 @@
 // Common
 #let img(path, width: auto) = context {
   if target() != "html" {
-    return image(path, width:width)
+    return image(path, width: width)
   }
   html.elem("img", attrs: (src: str(path), width: to-string([#width])))[ ]
 }
@@ -175,5 +177,14 @@
   }
 
   html.elem("span", attrs: (style: styles.join(" ")))[#content]
+}
+
+
+#let details(title, content) = {
+  let details = html.elem("span", attrs: (class: "fold-container", onclick: "this.classList.toggle('open')"))[
+    #html.elem("span", attrs: (class: "ellipsis"), title)
+    #html.elem("span", attrs: (class: "hidden-content"), [\[ #content \]])
+  ]
+  details
 }
 

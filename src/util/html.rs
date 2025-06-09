@@ -48,6 +48,17 @@ impl Attributes {
             .get(&HtmlString::from(key.as_bytes().to_vec()))
             .map(|v| String::from_utf8_lossy(&v.0))
     }
+    pub fn into_variables(self) -> Vec<(String, String)> {
+        self.attrs
+            .into_iter()
+            .map(|(key, value)| {
+                (
+                    format!("{{{}}}",html_as_str(&key)),
+                    html_as_str(&value).to_string(),
+                )
+            })
+            .collect()
+    }
 }
 impl FromIterator<(String, String)> for Attributes {
     fn from_iter<T: IntoIterator<Item = (String, String)>>(iter: T) -> Self {

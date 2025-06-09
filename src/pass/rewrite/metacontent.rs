@@ -13,11 +13,7 @@ rewrite_pass![
     pure = false
 ];
 impl TagRewritePass for MetaContentPass {
-    fn init(
-        &self,
-        attrs: Attributes,
-        pass: &mut PurePass,
-    ) -> Result<HashMap<String, String>> {
+    fn init(&self, attrs: Attributes, pass: &mut PurePass) -> Result<HashMap<String, String>> {
         let slug = attrs.get("from");
         if slug.is_none() {
             return Err(anyhow!("Metadata-Get: expect `from` attribute"));
@@ -62,12 +58,8 @@ impl TagRewritePass for MetaContentPass {
     ) -> Option<String> {
         let slug = &attrs["from"];
         let key = &attrs["key"];
-        match global_data.metadata(slug) {
-            Some(metadata) => Some(metadata.contents.get(key)?.to_string()),
-            None => {
-                eprintln!("[WARN] Metadata-Get: article not found: {slug}");
-                None
-            }
-        }
+        global_data
+            .metadata(slug)
+            .and_then(|metadata| Some(metadata.contents.get(key)?.to_string()))
     }
 }

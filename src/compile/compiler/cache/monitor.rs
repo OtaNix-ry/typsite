@@ -1,5 +1,5 @@
 use crate::util::error::{log_err, log_err_or_ok};
-use crate::util::fs::write_into_file;
+use crate::util::fs::{remove_file, write_into_file};
 use crate::util::path::relative_path;
 use crate::walk_glob;
 use anyhow::{Context, Result};
@@ -14,7 +14,7 @@ use std::{fs::File, path::Path};
 
 pub struct Monitor<'a> {
     config_path: &'a Path,
-    typst_path:&'a Path,
+    typst_path: &'a Path,
     hash_path: PathBuf,
     typst_hash_cache: HashMap<PathBuf, Hash>,
     non_typst_hash_cache: HashMap<PathBuf, Hash>,
@@ -79,9 +79,7 @@ impl<'a> Monitor<'a> {
         })
     }
 
-    pub fn refresh_config(
-        &mut self,
-    ) -> Result<(HashSet<PathBuf>, HashSet<PathBuf>)> {
+    pub fn refresh_config(&mut self) -> Result<(HashSet<PathBuf>, HashSet<PathBuf>)> {
         let pattern = format!("{}/**/*", self.config_path.display());
         let hash_new = hash_pattern(&pattern).into_iter().collect();
         refresh(&self.hash_path, &mut self.config_hash_cache, hash_new)
@@ -97,15 +95,25 @@ impl<'a> Monitor<'a> {
             .map(|(updated, deleted)| (all_typsts, updated, deleted))
     }
 
-    pub fn refresh_non_typst(
-        &mut self,
-    ) -> Result<(HashSet<PathBuf>, HashSet<PathBuf>)> {
+    pub fn refresh_non_typst(&mut self) -> Result<(HashSet<PathBuf>, HashSet<PathBuf>)> {
         let pattern = format!("{}/**/*[!.typ]", self.typst_path.display());
         let hash_new = hash_pattern(&pattern).into_iter().collect();
         refresh(&self.hash_path, &mut self.non_typst_hash_cache, hash_new)
     }
-    pub fn delete_html_cache(&self, path: &Path) {
-        std::fs::remove_file(path).unwrap_or_else(|e| eprintln!("{e:?}"));
+    pub fn delete_cache(&self, path: &Path, html_cache_path: &Path) {
+        let cache_html_path = if !path.starts_with(html_cache_path) {
+            html_cache_path.join(path)
+        } else {
+            path.to_path_buf()
+        };
+        // cache_html_path.set_extension("html");
+        // remove_file(&cache_html_path, "cache html").unwrap_or(());
+        // let mut typ_hash_path = self.hash_path.join(relative_path(html_cache_path, &cache_html_path).unwrap());
+        // typ_hash_path.set_extension("typ.hash");
+        // remove_file(&typ_hash_path, "typ hash").unwrap_or(());
+        let mut html_hash_path = self.hash_path.join(cache_html_path);
+        html_hash_path.set_extension("html.hash");
+        remove_file(&html_hash_path, "html hash").unwrap_or(());
     }
 }
 
@@ -173,7 +181,7 @@ fn write_cache(
             let mut path = path.clone();
             path.add_extension("hash");
             let hash_path = hash_path.join(&path);
-            write_into_file(hash_path, &content).context("Failed to write hash file")
+            write_into_file(hash_path, &content, "hash")
         })
         .for_each(log_err);
     deleted
@@ -182,7 +190,7 @@ fn write_cache(
             let mut path = path.clone();
             path.add_extension("hash");
             let hash_path = hash_path.join(&path);
-            std::fs::remove_file(hash_path).context("Failed to remove hash file")
+            remove_file(hash_path, "hash")
         })
         .for_each(log_err);
     Ok(())

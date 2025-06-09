@@ -1,4 +1,4 @@
-use crate::compile::cache::dep::RevDeps;
+use super::cache::dep::RevDeps;
 use crate::compile::registry::Key;
 use crate::ir::article::Article;
 use std::collections::{HashMap, HashSet};
@@ -61,7 +61,7 @@ pub(super) fn apply_parents_and_backlinks<'b, 'a: 'b>(
 }
 pub(super) fn analyse_slugs_to_update_and_load<'b, 'a: 'b>(
     changed_article_slugs: &HashSet<Key>,
-    changed_typst_paths: &mut HashSet<PathBuf>,
+    updated_typst_paths: &mut HashSet<PathBuf>,
     changed_config_paths: &HashSet<PathBuf>,
     updated_articles: &HashMap<Key, Article<'a>>,
     rev_dep: &RevDeps,
@@ -69,7 +69,7 @@ pub(super) fn analyse_slugs_to_update_and_load<'b, 'a: 'b>(
     let mut slugs_to_update = HashSet::new();
     let mut slugs_to_load = HashSet::new();
 
-    let mut slugs: HashSet<Key> = changed_typst_paths // Changed typst files
+    let mut slugs: HashSet<Key> = updated_typst_paths // Changed typst files
         .iter()
         .chain(changed_config_paths.iter()) // Changed config files
         .filter_map(|path| rev_dep.get(path)) // All files that depend on them need to be updated
@@ -136,7 +136,7 @@ pub(super) fn analyse_slugs_to_update_and_load<'b, 'a: 'b>(
             updated_articles,
             &slug,
             &mut slugs_to_update,
-            changed_typst_paths,
+            updated_typst_paths,
         );
         spread_child(updated_articles, &slug, &mut slugs_to_load);
     });

@@ -3,6 +3,10 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    compile::{
+        error::{TypError, TypResult},
+        registry::Key,
+    },
     config::TypsiteConfig,
     ir::{
         article::sidebar::Pos,
@@ -29,15 +33,19 @@ impl<'a> Body<'a> {
             numberings,
         }
     }
-    pub fn from(self_slug: &str, pure: PureBody, config: &'a TypsiteConfig) -> Body<'a> {
+    pub fn from(self_slug: Key, pure: PureBody, config: &'a TypsiteConfig) -> TypResult<Body<'a>> {
         let content = pure.content;
+        let mut err = TypError::new(self_slug.clone());
         let rewriters = pure
             .rewriters
             .into_iter()
-            .filter_map(|rewriter| BodyRewriter::from(self_slug.as_str(), rewriter, config))
-            .collect();
+            .map(|rewriter| err.ok(BodyRewriter::from(self_slug.clone(), rewriter, config)))
+            .collect::<Vec<Option<_>>>();
         let numberings = pure.numberings;
-        Self::new(content, rewriters, numberings)
+        err.err_or(move || {
+            let rewriters = rewriters.into_iter().flatten().collect();
+            Self::new(content, rewriters, numberings)
+        })
     }
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -1,3 +1,4 @@
+use crate::compile::error::{TypError, TypResult};
 use crate::config::TypsiteConfig;
 use crate::config::footer::{BACKLINKS_KEY, REFERENCES_KEY};
 use crate::config::schema::{BACKLINK_KEY, REFERENCE_KEY, Schema};
@@ -8,7 +9,7 @@ use crate::util::html::{Attributes, OutputHtml};
 use crate::util::html::{OutputHead, write_token};
 use crate::util::str::ac_replace;
 use crate::write_into;
-use anyhow::Context;
+use anyhow::{Context};
 use html5gum::{Token, Tokenizer};
 use std::borrow::Cow;
 use std::fmt::Write;
@@ -43,7 +44,7 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
         }
     }
 
-    pub fn run(mut self) -> anyhow::Result<OutputHtml<'a>> {
+    pub fn run(mut self) -> TypResult<OutputHtml<'a>> {
         let metadata = self
             .global_data
             .metadata(self.article.slug.as_ref())
@@ -133,53 +134,68 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
         let body = metadata.inline(&self.schema.body);
         // Body
         let tokenizer = Tokenizer::new(&body);
+        let mut err = TypError::new_schema(self.article.slug.clone(), self.schema.id.as_str());
         for result in tokenizer {
             match result {
                 Ok(Token::StartTag(tag)) if tag.name == b"metadata" => {
                     let attrs = Attributes::new(tag.attributes);
                     let meta_key = attrs
                         .expect("get")
-                        .context("Metadata tag `get` not found")?;
+                        .context("Expect Metadata tag with attr `get`");
+                    let meta_key = err.ok(meta_key);
                     let from = attrs.get("from").unwrap_or(Cow::Borrowed("$self"));
                     let metadata = match from.as_str() {
-                        "$self" => metadata,
+                        "$self" => Some(metadata),
                         from => {
                             let from = self
                                 .global_data
                                 .articles
                                 .get(from)
-                                .context(format!("Article {from} not found in metadata `from`"))?
-                                .slug
-                                .as_str();
-                            self.global_data
-                                .metadata(from)
-                                .context(format!("Metadata not found for {from}"))?
+                                .context(format!(
+                                    "Article {from} not found in metadata's attr `from`"
+                                ))
+                                .map(|it| it.slug.as_str())
+                                .and_then(|from| {
+                                    self.global_data
+                                        .metadata(from)
+                                        .context(format!("Metadata of {from} not found"))
+                                });
+                            err.ok(from)
                         }
                     };
-                    let content = metadata
-                        .contents
-                        .get(&meta_key)
-                        .context(format!("Metadata key {meta_key} not found"))?;
-                    write_into!(self.body, "{}", content)?
+                    metadata.zip(meta_key).and_then(|(metadata, meta_key)| {
+                        let content = metadata
+                            .contents
+                            .get(&meta_key)
+                            .context(format!("Metadata key {meta_key} not found"));
+                        err.ok(content)
+                            .and_then(|content| err.ok(write_into!(self.body, "{}", content)))
+                    })
                 }
                 Ok(Token::StartTag(tag)) if tag.name == b"sidebar" => {
                     let body = metadata.inline(self.config.sidebar.block.body.as_str());
                     let tail = metadata.inline(self.config.sidebar.block.tail.as_str());
-                    write_into!(self.body, "{body}\n{}\n{tail}", self.sidebar)?
+                    err.ok(write_into!(self.body, "{body}\n{}\n{tail}", self.sidebar))
                 }
                 Ok(Token::StartTag(tag)) if tag.name == b"content" => {
-                    write_into!(self.body, "{}\n", self.content)?
+                    err.ok(write_into!(self.body, "{}\n", self.content))
                 }
                 Ok(Token::StartTag(tag)) if tag.name == b"footer" => {
-                    write_into!(self.body, "{}\n", footer.body)?
+                    err.ok(write_into!(self.body, "{}\n", footer.body))
                 }
                 Ok(Token::EndTag(tag)) => match tag.name.as_slice() {
-                    b"metadata" | b"sidebar" | b"content" | b"footer" => {}
-                    _ => write_token(&mut self.body, &Token::EndTag(tag))?,
+                    b"metadata" | b"sidebar" | b"content" | b"footer" => None,
+                    _ => err.ok(write_token(&mut self.body, &Token::EndTag(tag))),
                 },
-                Ok(token) => write_token(&mut self.body, &token)?,
-                Err(e) => return Err(TypsiteError::HtmlParse(e).into()),
+                Ok(token) => err.ok(write_token(&mut self.body, &token)),
+                Err(e) => {
+                    err.add(TypsiteError::HtmlParse(e).into());
+                    break;
+                },
             };
+        }
+        if err.has_error() {
+            return Err(err)
         }
         let html = OutputHtml::<'a>::new(head, self.body);
         Ok(html)

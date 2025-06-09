@@ -1,28 +1,37 @@
-use crate::compile::registry::{ Key, KeyRegistry};
+use crate::compile::error::{TypError, TypResult};
+use crate::compile::registry::{Key, KeyRegistry};
 use crate::config::TypsiteConfig;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+
 pub struct Dependency {
     dependency: HashMap<Source, HashSet<UpdatedIndex>>,
 }
 impl Dependency {
-    pub(super) fn from(self_slug:&str, pure: PureDependency,config: &TypsiteConfig<'_>, registry:&KeyRegistry) -> Dependency {
-        let dependency = pure.dependency
+    pub(super) fn from(
+        self_slug: Key,
+        pure: PureDependency,
+        config: &TypsiteConfig<'_>,
+        registry: &KeyRegistry,
+    ) -> TypResult<Dependency> {
+        let mut err = TypError::new(self_slug.clone());
+        let dependency = pure
+            .dependency
             .into_iter()
-            .filter_map(|(source, indexes)| {
-                Source::from(self_slug, source, config, registry)
+            .map(|(source, indexes)| {
+                err.ok(Source::from(self_slug.as_str(), source, config, registry))
                     .map(|source| (source, indexes))
             })
-            .collect();
-        Dependency{dependency}
+            .collect::<Vec<Option<_>>>();
+        err.err_or(|| Dependency {
+            dependency: dependency.into_iter().flatten().collect(),
+        })
     }
-    pub fn unwrap(
-        &self,
-        registry: &KeyRegistry,
-    ) -> HashMap<Arc<Path>, HashSet<UpdatedIndex>> {
+    pub fn unwrap(&self, registry: &KeyRegistry) -> HashMap<Arc<Path>, HashSet<UpdatedIndex>> {
         self.dependency
             .clone()
             .into_iter()
@@ -32,11 +41,13 @@ impl Dependency {
             })
             .collect()
     }
+    pub fn articles(&self) -> HashSet<Key> {
+        self.dependency.iter().filter_map(|(source,_)| source.article()).collect()
+    }
 
     pub fn new(dependency: HashMap<Source, HashSet<UpdatedIndex>>) -> Self {
         Self { dependency }
     }
-
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -81,15 +92,22 @@ impl Source {
         pure: PureSource,
         config: &TypsiteConfig,
         registry: &KeyRegistry,
-    ) -> Option<Self> {
+    ) -> Result<Self> {
         match pure {
             PureSource::Article(slug) => {
-                Some(Source::Article(registry.know(slug, "Source", self_slug)?))
+                Ok(Source::Article(registry.know(slug, "Source", self_slug)?))
             }
-            PureSource::Path(path) => Some(Source::Path(config.path_ref(&path).or_else(|| {
-                eprintln!("[WARN] Path {path:?} not found in {self_slug}");
-                None
-            })?)),
+            PureSource::Path(path) => {
+                Ok(Source::Path(config.path_ref(&path).context(format!(
+                    "Path {path:?} not found in {self_slug}"
+                ))?))
+            }
+        }
+    }
+    pub fn article(&self)-> Option<Key>{
+        match self {
+            Source::Article(key) => Some(key.clone()),
+            _ => None
         }
     }
 }

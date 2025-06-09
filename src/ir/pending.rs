@@ -1,7 +1,7 @@
 use crate::compile::registry::Key;
+use crate::config::TypsiteConfig;
 use crate::config::anchor::AnchorConfig;
 use crate::config::heading_numbering::HeadingNumberingConfig;
-use crate::config::TypsiteConfig;
 use crate::ir::article::data::GlobalData;
 use crate::ir::article::sidebar::{HeadingNumberingStyle, Pos, SidebarIndex, SidebarType};
 use crate::ir::embed::SectionType;
@@ -9,6 +9,8 @@ use crate::util::str::{SectionElem, ac_replace};
 use crate::util::{pos_base_on, pos_slug};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+
+use super::embed::EmbedVariables;
 
 pub struct BodyNumberingData {
     pos: Pos,
@@ -108,6 +110,7 @@ pub struct EmbedData<'c> {
     full_sidebar_index: SidebarIndex,
     embed_sidebar_index: SidebarIndex,
     open: bool,
+    variabels: EmbedVariables,
     title: String,
     full_sidebar_title_index: SidebarIndex,
     embed_sidebar_title_index: SidebarIndex,
@@ -130,6 +133,7 @@ impl<'c> EmbedData<'c> {
         full_sidebar_index: SidebarIndex,
         embed_sidebar_index: SidebarIndex,
         open: bool,
+        variabels: EmbedVariables,
         title: String,
         full_sidebar_title_index: SidebarIndex,
         embed_sidebar_title_index: SidebarIndex,
@@ -143,6 +147,7 @@ impl<'c> EmbedData<'c> {
             full_sidebar_index,
             embed_sidebar_index,
             open,
+            variabels,
             title,
             full_sidebar_title_index,
             embed_sidebar_title_index,
@@ -213,12 +218,17 @@ impl<'c> EmbedData<'c> {
             };
             embed_article_body.push(str);
         }
+        let mut replacements: Vec<(&str, &str)> = self
+            .variabels
+            .iter()
+            .map(|(key, value)| (key.as_str(), value.as_str()))
+            .collect();
+        replacements.push(("{open}=\"\"", if self.open { "open=\"\"" } else { "" }));
 
-        let embed_body = metadata.inline(embed_article_body.join("").as_str());
-        body[self.body_index] = ac_replace(
-            embed_body.as_str(),
-            &[("{open}=\"\"", if self.open { "open=\"\"" } else { "" })],
-        );
+        let embed_body = embed_article_body.join("");
+        let embed_body = ac_replace(&embed_body, &replacements);
+        let embed_body = metadata.inline(&embed_body);
+        body[self.body_index] = embed_body;
         let indexes = if sidebar_type == SidebarType::All {
             &self.full_sidebar_index
         } else {

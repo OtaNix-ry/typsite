@@ -75,11 +75,7 @@ fn cite<'c, 'b: 'c, 'a: 'b>(
     } else {
         format!("{slug}#{anchor}")
     };
-    match global_data.metadata(slug) {
-        Some(metadata) => Some(metadata.inline_with(text, &[("{url}", url.as_str())])),
-        None => {
-            eprintln!("[WARN] CiteRule: article not found: {slug}");
-            None
-        }
-    }
+    global_data
+        .metadata(slug)
+        .map(|metadata| metadata.inline_with(text, &[("{url}", url.as_str())]))
 }

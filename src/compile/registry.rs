@@ -1,4 +1,5 @@
 use crate::config::TypsiteConfig;
+use anyhow::*;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -71,10 +72,10 @@ impl KeyRegistry {
         self.article_paths.get(slug).cloned()
     }
 
-    pub fn know(&self, slug: String, tag: &str, from: &str) -> Option<Key> {
-        self.known_articles.get(&slug).cloned().or_else(|| {
-            println!("[WARN] {tag} not found: {slug} in {from}");
-            None
-        })
+    pub fn know(&self, slug: String, tag: &str, from: &str) -> Result<Key> {
+        self.known_articles
+            .get(&slug)
+            .cloned()
+            .context(format!("{tag} not found: {slug} in {from}"))
     }
 }

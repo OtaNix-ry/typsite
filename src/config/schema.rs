@@ -33,8 +33,8 @@ impl SchemaConfig {
         Ok(Self { schemas })
     }
 
-    pub fn get(&self, id: &str) -> Option<&Schema> {
-        self.schemas.get(id)
+    pub fn get(&self, id: &str) -> Result<&Schema> {
+        self.schemas.get(id).context(format!("No schema named {id}"))
     }
 
 }
@@ -101,11 +101,11 @@ impl Schema {
             files.insert(config.footer.footer.path.clone());
             files.insert(config.footer.backlinks.path.clone());
             files.insert(config.footer.references.path.clone());
-            config
+            let _ = config
                 .schemas
                 .get(BACKLINK_KEY)
                 .map(|schema| files.insert(schema.path.clone()));
-            config
+            let _ = config
                 .schemas
                 .get(REFERENCE_KEY)
                 .map(|schema| files.insert(schema.path.clone()));

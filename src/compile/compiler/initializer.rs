@@ -3,10 +3,9 @@ use std::{
     collections::HashSet,
     path::{Path, PathBuf},
 };
-
+use super::cache::monitor::Monitor;
 use crate::{
-    compile::{
-        cache::monitor::Monitor, init_proj_options, options::ProjOptions, proj_options
+    compile::{init_proj_options, options::ProjOptions, proj_options
     },
     config::TypsiteConfig,
 };
@@ -119,7 +118,7 @@ pub fn initialize<'a>(
 }
 
 impl<'a> Input<'a> {
-    pub fn changed(&self) -> bool {
+    pub fn unchanged(&self) -> bool {
         self.changed_typst_paths.is_empty()
             && self.changed_config_paths.is_empty()
             && self.changed_non_typst.is_empty()

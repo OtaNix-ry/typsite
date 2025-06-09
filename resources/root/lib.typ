@@ -235,15 +235,19 @@
 
 
 // Embed
-// sidebar: only_title | full | none
-// heading_level: child | peer | exact heading level(1-6)
-#let embed(slug, open: true, sidebar: "full", heading_level: "child") = {
+// sidebar: "none" | "only-title" | "full"
+// heading_level: "child" | "peer" | exact heading level(1-6) or using heading like `== #embed("./example.typ")`
+#let embed(slug, open: true, sidebar: "full", heading-level: "child", show-metadata: false) = {
   context {
     if target() != "html" {
       return pdf.embed(slug)
     }
+    if sidebar != "none" and sidebar != "full" and sidebar != "only-title" and sidebar != "only_title" {
+      panic("Expect 'none' | 'full' | 'only-title' of #embed.sidebar, but got: " + sidebar)
+    }
     let headings = query(selector(heading).before(here()))
     let headings_len = headings.len()
+
     let last_heading_level = type => {
       if headings_len > 0 {
         let level = headings.at(headings_len - 1).level
@@ -256,14 +260,15 @@
         }
       } else { 0 }
     }
-    let heading_level = last_heading_level(heading_level)
+    let heading_level = last_heading_level(heading-level)
     html.elem(
       "embed",
       attrs: (
         slug: str(slug),
-        open: bool_to_str(open),
+        open: bool-to-str(open),
         sidebar: sidebar,
         heading_level: str(heading_level),
+        show-metadata: bool-to-str(show-metadata)
       ),
     )[ ]
   }
@@ -300,7 +305,7 @@
   }
 }
 
-#let page_title(content) = context {
+#let page-title(content) = context {
   if target() == "html" {
     html.elem("metacontent", attrs: ("set": "page-title"), content)
   } else {
@@ -332,7 +337,7 @@
   }
 }
 
-#let set_metacontent(meta_key, content) = context {
+#let set-metacontent(meta_key, content) = context {
   if target() == "html" {
     html.elem("metacontent", attrs: ("set": meta_key), content)
   } else {
@@ -348,28 +353,39 @@
   }
 }
 
+
 // MetaOptions
 
-// type: none | bullet | roman | alphabet
-#let heading_numbering(type) = context {
+
+// type: "none" | "bullet" | "roman" | "alphabet"
+#let heading-numbering(type) = context {
   if target() == "html" {
-    html.elem("metaoptions", attrs: (key: "heading_numbering", value: type))[ ]
+    if type != "none" and type != "bullet" and type != "roman" and type != "alphabet" {
+      panic("Expect 'none' | 'bullet' | 'roman' | \"alhpabet\" of heading-numbering in metaoption, but got: " + type)
+    }
+    html.elem("metaoption", attrs: (key: "heading-numbering", value: type))[ ]
   } else {
     content
   }
 }
+#let heading_numbering = heading-numbering
 
-//type: "full" | "only_embed"
+//type: "none" | "full" | "only-embed"
 #let sidebar(type) = context {
   if target() == "html" {
-    html.elem("metaoptions", attrs: (key: "sidebar", value: type))[ ]
+    if type != "none" and type != "full" and type != "only-embed" and type != "only_embed" {
+      panic("Expect 'none' | 'full' | 'only-embed' of sidebar in metaoption, but got: " + type)
+    }
+    if type == "none" {
+      return set-metacontent("sidebar", [false])
+    }
+    html.elem("metaoption", attrs: (key: "sidebar", value: type))[ ]
   } else {
     content
   }
 }
 
 // MetaGraph
-
 
 #let parent(slug) = context {
   if target() == "html" {

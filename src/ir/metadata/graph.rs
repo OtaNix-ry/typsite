@@ -1,4 +1,7 @@
-use crate::compile::registry::{Key, KeyRegistry};
+use crate::compile::{
+    error::{TypError, TypResult},
+    registry::{Key, KeyRegistry},
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -19,38 +22,39 @@ pub struct MetaNode {
 }
 
 impl MetaNode {
-    pub fn from(slug: Key, pure: PureMetaNode, registry: &KeyRegistry) -> MetaNode {
+    pub fn from(slug: Key, pure: PureMetaNode, registry: &KeyRegistry) -> TypResult<MetaNode> {
+        let mut err = TypError::new(slug.clone());
         let parent = pure
             .parent
-            .and_then(|parent| registry.know(parent, "Parent", slug.as_str()));
+            .and_then(|parent| err.ok(registry.know(parent, "Parent", slug.as_str())));
         let parents = pure
             .parents
             .into_iter()
-            .filter_map(|p| registry.know(p, "Parent", slug.as_str()))
-            .collect();
+            .map(|p| err.ok(registry.know(p, "Parent", slug.as_str())))
+            .collect::<Vec<Option<_>>>();
         let backlinks = pure
             .backlinks
             .into_iter()
-            .filter_map(|p| registry.know(p, "Backlinks", slug.as_str()))
-            .collect();
+            .map(|p| err.ok(registry.know(p, "Backlinks", slug.as_str())))
+            .collect::<Vec<Option<_>>>();
         let references = pure
             .cited
             .into_iter()
-            .filter_map(|p| registry.know(p, "References", slug.as_str()))
-            .collect();
+            .map(|p| err.ok(registry.know(p, "References", slug.as_str())))
+            .collect::<Vec<Option<_>>>();
         let children = pure
             .children
             .into_iter()
-            .filter_map(|p| registry.know(p, "Children", slug.as_str()))
-            .collect();
-        MetaNode {
+            .map(|p| err.ok(registry.know(p, "Children", slug.as_str())))
+            .collect::<Vec<Option<_>>>();
+        err.err_or(|| MetaNode {
             slug,
             parent,
-            parents,
-            backlinks,
-            references,
-            children,
-        }
+            parents: parents.into_iter().flatten().collect(),
+            backlinks: backlinks.into_iter().flatten().collect(),
+            references: references.into_iter().flatten().collect(),
+            children: children.into_iter().flatten().collect(),
+        })
     }
 }
 

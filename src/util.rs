@@ -7,6 +7,9 @@ pub mod path;
 pub mod str;
 
 pub fn pos_slug(pos: &[usize], slug: &str) -> String {
+    if pos.is_empty() {
+        return slug[1..].to_string();
+    }
     let pos = pos
         .iter()
         .map(|u| (u + 1).to_string())

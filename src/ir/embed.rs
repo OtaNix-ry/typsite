@@ -1,10 +1,15 @@
-use crate::ir::article::sidebar::{SidebarIndex, SidebarPos};
+
 use crate::compile::registry::{Key, KeyRegistry};
+use crate::ir::article::sidebar::{SidebarIndex, SidebarPos};
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
+
+pub type EmbedVariables = Vec<(String,String)>;
 
 pub struct Embed {
     pub slug: Key,
     pub open: bool,
+    pub variables: EmbedVariables,
     pub section_type: SectionType,
     pub sidebar_pos: SidebarPos,
     pub full_sidebar_index: SidebarIndex,  // Pos, sidebar index
@@ -16,6 +21,7 @@ impl Embed {
     pub fn new(
         slug: Key,
         open: bool,
+        variables: EmbedVariables,
         section_type: SectionType,
         sidebar_pos: SidebarPos,
         full_sidebar_index: SidebarIndex,
@@ -25,6 +31,7 @@ impl Embed {
         Embed {
             slug,
             open,
+            variables,
             section_type,
             sidebar_pos,
             full_sidebar_index,
@@ -33,24 +40,22 @@ impl Embed {
         }
     }
 
-    pub fn from(self_slug: &str, pure: PureEmbed, registry: &KeyRegistry) -> Option<Embed> {
+    pub fn from(self_slug: &str, pure: PureEmbed, registry: &KeyRegistry) -> anyhow::Result<Embed> {
         let slug = pure.slug;
         match registry.slug(slug.as_str()) {
-            Some(slug) => Some(Embed::new(
+            Some(slug) => Ok(Embed::new(
                 slug,
                 pure.open,
+                pure.variables,
                 pure.section_type,
                 pure.sidebar_pos,
                 pure.full_sidebar_index,
                 pure.embed_sidebar_index,
                 pure.body_index,
             )),
-            None => {
-                eprintln!(
-                    "[WARN] Embed article not found: {slug} in {self_slug}, skip this embedding."
-                );
-                None
-            }
+            None => Err(anyhow!(
+                "Embed article not found: {slug} in {self_slug}, skip this embedding."
+            )),
         }
     }
 }
@@ -59,6 +64,7 @@ impl Embed {
 pub struct PureEmbed {
     slug: String,
     open: bool,
+    variables: EmbedVariables,
     section_type: SectionType,
     sidebar_pos: SidebarPos,
     full_sidebar_index: SidebarIndex,
@@ -71,6 +77,7 @@ impl From<Embed> for PureEmbed {
         PureEmbed {
             slug: embed.slug.to_string(),
             open: embed.open,
+            variables: embed.variables,
             section_type: embed.section_type,
             sidebar_pos: embed.sidebar_pos,
             full_sidebar_index: embed.full_sidebar_index,
@@ -91,7 +98,7 @@ impl<T: AsRef<str>> From<T> for SectionType {
     fn from(s: T) -> Self {
         match s.as_ref() {
             "none" => SectionType::None,
-            "only_title" => SectionType::OnlyTitle,
+            "only_title" | "only-title" => SectionType::OnlyTitle,
             "full" => SectionType::Full,
             _ => {
                 eprintln!("[WARN] Invalid sidebar type: {}", s.as_ref());

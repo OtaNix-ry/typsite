@@ -1,7 +1,8 @@
-use crate::compile::cache::article::ArticleCache;
-use crate::compile::cache::dep::RevDeps;
+use crate::compile::compiler::cache::article::ArticleCache;
+use crate::compile::compiler::cache::dep::RevDeps;
 use crate::compile::options::CompileOptions;
 use crate::compile::registry::KeyRegistry;
+use crate::config::TypsiteConfig;
 use crate::util::path::{file_ext, format_path};
 use analysis::*;
 use anyhow::*;
@@ -14,8 +15,8 @@ use std::path::PathBuf;
 use std::result::Result::Ok;
 use typst_pass::compile_typsts;
 
-use super::init_compile_options;
 use super::watch::watch;
+use super::{init_compile_options, proj_options};
 
 mod analysis;
 mod html_pass;
@@ -24,7 +25,13 @@ mod output_sync;
 mod page_composer;
 mod typst_pass;
 
+mod cache {
+    pub mod article;
+    pub mod dep;
+    pub mod monitor;
+}
 
+type ErrorArticles = Vec<(PathBuf, String)>;
 
 pub struct Compiler {
     typst_path: PathBuf,             // Typst root
@@ -68,8 +75,10 @@ impl Compiler {
             &self.config_path,
         )?;
         // If all files are not changed, return
-        if input.changed() {
+        if input.unchanged() {
             return Ok(false);
+        } else if !input.overall_compile_needed {
+            println!("Files changed, compiling...");
         }
         let Input {
             mut monitor,
@@ -89,16 +98,20 @@ impl Compiler {
         let mut article_cache = ArticleCache::new(&self.cache_path);
 
         // If it's init, register all typst paths
-        if overall_compile_needed {
+        let error_cache_articles = if overall_compile_needed {
             registry.register_paths(&config, changed_typst_paths.iter());
+            vec![]
         } else {
             // Load Article Cache If needed
-            article_cache.load(&config, &deleted_typst_paths, &mut registry);
-        }
+            article_cache.load(&config, &deleted_typst_paths, &mut registry)
+        };
+
+        let proj_options_errors = verify_proj_options(&config, &registry)?;
 
         //2. Export typst as HTML
         // Only compile updated typst files into html
-        compile_typsts(
+        let error_typst_articles = compile_typsts(
+            &config,
             &self.typst_path,
             &self.html_cache_path,
             &changed_typst_paths,
@@ -112,7 +125,7 @@ impl Compiler {
 
         //3. Pass HTML
         // Pass updated html files
-        let (changed_articles, error_articles) = pass_html(
+        let (changed_articles, error_pending_articles) = pass_html(
             &self.html_cache_path,
             &config,
             &mut registry,
@@ -151,7 +164,11 @@ impl Compiler {
         rev_dependency.refresh(&config, &registry, &updated_articles);
 
         // 5. Compose pages
-        let PageData { output, cache } = compose_pages(
+        let PageData {
+            output,
+            cache,
+            failed: error_page_articles,
+        } = compose_pages(
             &config,
             changed_article_slugs,
             changed_typst_paths,
@@ -168,7 +185,7 @@ impl Compiler {
 
         // 7. Sync files to output
         let assets_path = self.config_path.join("assets");
-        let updated_assets = changed_config_paths
+        let changed_assets = changed_config_paths
             .into_iter()
             .filter(|path| {
                 path.starts_with(&assets_path) && file_ext(path) != Some("html".to_string())
@@ -187,13 +204,30 @@ impl Compiler {
             &self.html_cache_path,
             &self.output_path,
             output,
-            error_articles,
+            proj_options_errors,
+            error_typst_articles,
+            error_cache_articles,
+            error_pending_articles,
+            error_page_articles,
             changed_non_typst,
             deleted_non_typst,
-            updated_assets,
+            changed_assets,
             deleted_assets,
         );
 
         Ok(updated)
     }
+}
+
+fn verify_proj_options(config: &TypsiteConfig<'_>, registry: &KeyRegistry) -> Result<Vec<String>> {
+    let mut errors = Vec::new();
+    let options = proj_options()?;
+    let parent = options.default_metadata.graph.parent.clone();
+    if let Some(parent) = parent {
+        let parent = config.format_slug(&parent);
+        if let Err(err) = registry.know(parent, "default_metadata.graph.parent", "options.toml") {
+            errors.push(format!("{err}"))
+        }
+    }
+    Ok(errors)
 }

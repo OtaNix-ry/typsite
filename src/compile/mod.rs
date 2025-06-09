@@ -11,12 +11,8 @@ pub mod watch;
 pub mod options;
 
 pub mod registry;
+pub mod error;
 
-mod cache {
-    pub mod article;
-    pub mod dep;
-    pub mod monitor;
-}
 
 macro_rules! global_config {
     ($static_name:ident, $type:ty, $init_fn:ident, $accessor:ident) => {

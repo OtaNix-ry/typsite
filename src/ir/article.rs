@@ -1,14 +1,16 @@
+use crate::compile::error::{TypError, TypResult};
 use crate::compile::registry::{Key, KeyRegistry, SlugPath};
-use crate::config::{ TypsiteConfig};
+use crate::config::TypsiteConfig;
 use crate::config::schema::Schema;
+use crate::ir::article::sidebar::Sidebar;
 use crate::ir::embed::{Embed, PureEmbed};
 use crate::ir::metadata::content::MetaContents;
 use crate::ir::metadata::graph::MetaNode;
 use crate::ir::metadata::options::MetaOptions;
 use crate::ir::metadata::{Metadata, PureMetadata};
 use crate::ir::pending::{AnchorData, Pending};
-use crate::ir::article::sidebar::Sidebar;
 use crate::util::html::{OutputHead, OutputHtml};
+use anyhow::{Context, Result};
 use body::{Body, PureBody};
 use data::GlobalData;
 use dep::{Dependency, PureDependency, UpdatedIndex};
@@ -17,12 +19,10 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
+pub mod body;
 pub mod data;
 pub mod dep;
-pub mod body;
 pub mod sidebar;
-
-
 
 struct Cache<'a> {
     // body, sidebar
@@ -33,8 +33,8 @@ struct Cache<'a> {
     html_head: OnceLock<OutputHead<'a>>,
 }
 impl<'a> Cache<'a> {
-    fn new() -> Cache<'a>{
-        Cache{
+    fn new() -> Cache<'a> {
+        Cache {
             content: OnceLock::new(),
             html_head: OnceLock::new(),
             all_used_rules: OnceLock::new(),
@@ -43,7 +43,6 @@ impl<'a> Cache<'a> {
         }
     }
 }
-
 
 pub struct Article<'a> {
     // Article path (with extension)
@@ -60,7 +59,7 @@ pub struct Article<'a> {
     embeds: Vec<Embed>,
     dependency: Dependency,
     used_rules: HashSet<&'a str>,
-    cache: Cache<'a>
+    cache: Cache<'a>,
 }
 
 impl<'c, 'b: 'c, 'a: 'b> Article<'a> {
@@ -68,28 +67,47 @@ impl<'c, 'b: 'c, 'a: 'b> Article<'a> {
         pure: PureArticle,
         config: &'a TypsiteConfig,
         registry: &KeyRegistry,
-    ) -> Article<'a> {
+    ) -> TypResult<Article<'a>> {
         let self_slug = registry.know(pure.slug, "Article", "").unwrap();
         let path = registry.path(self_slug.as_ref()).unwrap();
-        let schema: &'a Schema = config.schemas.get(&pure.schema).unwrap();
+        let mut err = TypError::new(self_slug.clone());
+        let schema = config.schemas.get(&pure.schema);
+        let schema = err.ok(schema);
         let metadata = Metadata::from(self_slug.clone(), pure.metadata, config, registry);
+        let metadata = err.ok_typ(metadata);
         let full_sidebar = pure.full_sidebar;
         let embed_sidebar = pure.embed_sidebar;
         let head = pure.head;
-        let body = Body::from(self_slug.as_str(), pure.body, config);
+        let body = Body::from(self_slug.clone(), pure.body, config);
+        let body = err.ok_typ(body);
         let embeds = pure
             .embeds
             .into_iter()
-            .filter_map(|embed| Embed::from(self_slug.as_str(), embed, registry))
-            .collect();
-        let dependency = Dependency::from(self_slug.as_str(), pure.dependency, config, registry);
+            .map(|embed| err.ok(Embed::from(self_slug.as_str(), embed, registry)))
+            .collect::<Vec<Option<_>>>();
+        let dependency = Dependency::from(self_slug.clone(), pure.dependency, config, registry);
+        let dependency = err.ok_typ(dependency);
         let used_rules = pure
             .used_rules
             .into_iter()
-            .filter_map(|rule| config.rules.rule_name(rule.as_str()))
-            .collect();
+            .map(|rule| {
+                err.ok(config
+                    .rules
+                    .rule_name(rule.as_str())
+                    .context(format!("No rewrite rule named {rule}")))
+            })
+            .collect::<Vec<Option<_>>>();
         let anchors = pure.anchors;
-        Article {
+        if err.has_error() {
+            return Err(err);
+        }
+        let metadata = metadata.unwrap();
+        let schema = schema.unwrap();
+        let body = body.unwrap();
+        let embeds = embeds.into_iter().flatten().collect();
+        let dependency = dependency.unwrap();
+        let used_rules = used_rules.into_iter().flatten().collect();
+        let article = Article {
             slug: self_slug,
             path,
             metadata,
@@ -103,7 +121,8 @@ impl<'c, 'b: 'c, 'a: 'b> Article<'a> {
             used_rules,
             anchors,
             cache: Cache::new(),
-        }
+        };
+        Ok(article)
     }
 
     pub fn new(
@@ -133,7 +152,7 @@ impl<'c, 'b: 'c, 'a: 'b> Article<'a> {
             dependency,
             used_rules,
             anchors,
-            cache: Cache::new()
+            cache: Cache::new(),
         }
     }
 
@@ -141,7 +160,9 @@ impl<'c, 'b: 'c, 'a: 'b> Article<'a> {
         &'b self,
         global_data: &'c GlobalData<'a, 'b, 'c>,
     ) -> &'b (Vec<String>, Vec<String>, Vec<String>) {
-        self.cache.content.get_or_init(|| global_data.init_cache(self))
+        self.cache
+            .content
+            .get_or_init(|| global_data.init_cache(self))
     }
     pub fn get_pending_or_init(
         &'b self,
@@ -188,11 +209,18 @@ impl<'c, 'b: 'c, 'a: 'b> Article<'a> {
                 if let Some(child) = global_data.article(child.as_str()) {
                     all_used_rules.extend(child.all_used_rules(global_data));
                 } else {
-                    eprintln!("[WARN] Embed article {} not found in ", self.slug);
+                    eprintln!(
+                        "[WARN] (all_used_rules) Embed article {} not found in {} ",
+                        child, self.slug
+                    );
                 }
             });
             all_used_rules
         })
+    }
+
+    pub fn get_depending_articles(&self) -> HashSet<Key> {
+        self.dependency.articles()
     }
 
     pub fn get_dependency(
@@ -255,7 +283,11 @@ impl PureArticle {
         let path = article.path.to_path_buf();
         let metadata = article.metadata;
         let (body_content, full_sidebar, embed_sidebar) = content_cache;
-        let body = Body::new(body_content, article.body.rewriters , article.body.numberings);
+        let body = Body::new(
+            body_content,
+            article.body.rewriters,
+            article.body.numberings,
+        );
         let body = PureBody::from(body);
         let full_sidebar = article.full_sidebar.with_contents(full_sidebar);
         let embed_sidebar = article.embed_sidebar.with_contents(embed_sidebar);
@@ -298,4 +330,3 @@ where
     vec.sort();
     serializer.collect_seq(vec)
 }
-

@@ -10,13 +10,15 @@ use std::{
     path::{Path, PathBuf},
     result::Result::Ok,
 };
+
+use super::ErrorArticles;
  
 pub fn pass_html<'b, 'a: 'b>(
         html_cache_path: &Path,
         config: &'a TypsiteConfig<'a>,
         registry: &mut KeyRegistry,
         changed_html_paths: &mut Vec<PathBuf>,
-    ) -> (Vec<Article<'a>>, Vec<(PathBuf,String)>) {
+    ) -> (Vec<Article<'a>>, ErrorArticles) {
         // Partition into success and errors
         let (success, errors): (Vec<_>, Vec<_>) = changed_html_paths
             .iter()

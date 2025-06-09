@@ -160,7 +160,7 @@ Typsite 是一个用于构建静态网站的工具，其文章内容由纯 *Typs
 - 支持现代 Web 技术规范，如 HTML5、CSS3 和 JavaScript（ES6+）
 
 
-= #embed("./typst.typ", sidebar: "only_title")
+= #embed("./typst.typ", sidebar: "only-title")
 
 = 安装
 

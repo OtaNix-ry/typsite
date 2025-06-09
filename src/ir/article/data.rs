@@ -1,18 +1,20 @@
+use anyhow::anyhow;
+
 use crate::compile::compile_options;
-use crate::ir::metadata::Metadata;
-use crate::ir::pending::Pending;
+use crate::compile::error::{TypError, TypResult};
 use crate::compile::registry::Key;
 use crate::compile::watch::WATCH_AUTO_RELOAD_SCRIPT;
 use crate::config::TypsiteConfig;
 use crate::config::schema::{BACKLINK_KEY, REFERENCE_KEY};
+use crate::ir::metadata::Metadata;
+use crate::ir::pending::Pending;
 use crate::pass::{pass_embed, pass_rewriter_body, pass_schema};
 use crate::util::html::{OutputHead, OutputHtml};
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
-use super::dep::Indexes;
 use super::Article;
-
+use super::dep::Indexes;
 
 pub struct GlobalData<'a, 'b, 'c> {
     pub config: &'a TypsiteConfig<'a>,
@@ -46,7 +48,10 @@ impl<'c, 'b: 'c, 'a: 'b> GlobalData<'a, 'b, 'c> {
         Some(article.get_metadata())
     }
 
-    pub(super) fn init_cache(&'c self, article: &'b Article<'a>) -> (Vec<String>, Vec<String>, Vec<String>) {
+    pub(super) fn init_cache(
+        &'c self,
+        article: &'b Article<'a>,
+    ) -> (Vec<String>, Vec<String>, Vec<String>) {
         let rewriter_indexes = self
             .global_body_rewrite_indexes
             .get(article.slug.as_str())
@@ -87,88 +92,54 @@ impl<'c, 'b: 'c, 'a: 'b> GlobalData<'a, 'b, 'c> {
             })
             .unwrap()
     }
+    pub fn schema_html(
+        &'c self,
+        schema_id: &str,
+        article: &'b Article<'a>,
+        content: &str,
+        sidebar: &str,
+    ) -> TypResult<OutputHtml<'a>> {
+        let schema = self.config.schemas.get(schema_id);
+        match schema {
+            Err(_) => {
+                let mut err = TypError::new_schema(article.slug.clone(), schema_id);
+                err.add(anyhow!("Shchema {schema_id} not found"));
+                Err(err)
+            }
+            Ok(schema) => pass_schema(
+                self.config,
+                schema,
+                article,
+                content.as_str(),
+                sidebar.as_str(),
+                self,
+            ),
+        }
+    }
 
     pub fn init_backlink(
         &'c self,
         article: &'b Article<'a>,
         content: &str,
         sidebar: &str,
-    ) -> anyhow::Result<()> {
-        let schema = self.config.schemas.get(BACKLINK_KEY);
-        let backlink = match schema {
-            None => {
-                eprintln!(
-                    "[WARN] Schema {} not found in article {}",
-                    BACKLINK_KEY, article.slug
-                );
-                OutputHtml::empty()
-            }
-            Some(schema) => {
-                match pass_schema(
-                    self.config,
-                    schema,
-                    article,
-                    content.as_str(),
-                    sidebar.as_str(),
-                    self,
-                ) {
-                    Ok(html) => html,
-                    Err(err) => {
-                        eprintln!(
-                            "[WARN] Error occurred while passing article {} with schema {BACKLINK_KEY}: {:?}",
-                            article.slug, err
-                        );
-                        OutputHtml::empty()
-                    }
-                }
-            }
-        };
-        article
-            .cache
-            .backlink
-            .set(backlink)
-            .map_err(|_| anyhow::anyhow!("Failed to set backlink for article {}", article.slug))
+    ) -> TypResult<()> {
+        let backlink = self.schema_html(BACKLINK_KEY, article, content, sidebar)?;
+        article.cache.backlink.set(backlink).map_err(|_| {
+            let err = anyhow::anyhow!("Failed to set backlink");
+            TypError::new_with(article.slug.clone(), vec![err])
+        })
     }
     pub fn init_reference(
         &'c self,
         article: &'b Article<'a>,
         content: &str,
         sidebar: &str,
-    ) -> anyhow::Result<()> {
-        let schema = self.config.schemas.get(REFERENCE_KEY);
-        let reference = match schema {
-            None => {
-                eprintln!(
-                    "[WARN] Schema {} not found in article {}",
-                    REFERENCE_KEY, article.slug
-                );
-                OutputHtml::empty()
-            }
-            Some(schema) => {
-                match pass_schema(
-                    self.config,
-                    schema,
-                    article,
-                    content.as_str(),
-                    sidebar.as_str(),
-                    self,
-                ) {
-                    Ok(html) => html,
-                    Err(err) => {
-                        eprintln!(
-                            "[WARN] Error occurred while passing article {} with schema {REFERENCE_KEY}: {:?}",
-                            article.slug, err
-                        );
-                        OutputHtml::empty()
-                    }
-                }
-            }
-        };
-        article
-            .cache
-            .reference
-            .set(reference)
-            .map_err(|_| anyhow::anyhow!("Failed to set reference for article {}", article.slug))
+    ) -> TypResult<()> {
+        let reference = self.schema_html(REFERENCE_KEY, article, content, sidebar)?;
+        article.cache.reference.set(reference).map_err(|_| {
+            let err = anyhow::anyhow!("Failed to set reference");
+            TypError::new_with(article.slug.clone(), vec![err])
+        })
     }
 
     pub fn init_html_head(&'c self, article: &'b Article<'a>) -> &'b OutputHead<'a> {
@@ -206,19 +177,8 @@ impl<'c, 'b: 'c, 'a: 'b> GlobalData<'a, 'b, 'c> {
             {
                 let mut heads = HashSet::new();
                 for rule_id in rules.iter() {
-                    let rule = self.config.rules.get(rule_id);
-                    match rule {
-                        None => {
-                            eprintln!(
-                                "[WARN] Rule {} not found in article {}",
-                                rule_id, article.slug
-                            );
-                            continue;
-                        }
-                        Some(rule) => {
-                            heads.insert(&rule.head);
-                        }
-                    }
+                    let rule = self.config.rules.get(rule_id).unwrap();
+                    heads.insert(&rule.head);
                 }
                 for rule_head in heads {
                     head.push(rule_head.as_str());
@@ -228,4 +188,3 @@ impl<'c, 'b: 'c, 'a: 'b> GlobalData<'a, 'b, 'c> {
         })
     }
 }
-

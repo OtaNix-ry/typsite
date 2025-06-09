@@ -1,9 +1,12 @@
+use crate::compile::registry::Key;
 use crate::ir::article::data::GlobalData;
 use crate::ir::article::dep::Indexes;
-use crate::ir::embed::Embed;
-use crate::ir::pending::{BodyNumberingData, EmbedData, Pending, SidebarAnchorData, SidebarNumberingData, SidebarShowChildrenData};
 use crate::ir::article::sidebar::{Pos, SidebarIndex};
-use crate::compile::registry::Key;
+use crate::ir::embed::Embed;
+use crate::ir::pending::{
+    BodyNumberingData, EmbedData, Pending, SidebarAnchorData, SidebarNumberingData,
+    SidebarShowChildrenData,
+};
 use crate::util::pos_slug;
 use std::collections::HashMap;
 
@@ -39,7 +42,10 @@ impl<'c, 'b: 'c, 'a: 'b> PendingPass<'a, 'b, 'c> {
             .collect()
     }
 
-    fn emit_body_numberings(&self, body_numberings: &HashMap<Pos, usize>) -> Vec<BodyNumberingData> {
+    fn emit_body_numberings(
+        &self,
+        body_numberings: &HashMap<Pos, usize>,
+    ) -> Vec<BodyNumberingData> {
         body_numberings
             .iter()
             .map(|(pos, &body_index)| {
@@ -78,7 +84,7 @@ impl<'c, 'b: 'c, 'a: 'b> PendingPass<'a, 'b, 'c> {
     }
     fn emit_sidebar_show_children(
         &self,
-        sidebar_show_children: &SidebarIndex
+        sidebar_show_children: &SidebarIndex,
     ) -> SidebarShowChildrenData {
         SidebarShowChildrenData::new(sidebar_show_children.clone())
     }
@@ -88,7 +94,7 @@ impl<'c, 'b: 'c, 'a: 'b> PendingPass<'a, 'b, 'c> {
         let child = self.global_data.article(slug.as_str());
         if child.is_none() {
             eprintln!(
-                "[WARN] Embed `{}` not found in {}",
+                "[WARN] (emit_embed) Embed `{}` not found in {}",
                 slug.as_str(),
                 self.slug
             );
@@ -103,6 +109,7 @@ impl<'c, 'b: 'c, 'a: 'b> PendingPass<'a, 'b, 'c> {
         let full_sidebar_index = embed.full_sidebar_index.clone();
         let embed_sidebar_index = embed.embed_sidebar_index.clone();
         let open = embed.open;
+        let variables = embed.variables.clone();
         let title = child_metadata.inline(&self.global_data.config.embed.embed_title.body);
         let full_sidebar_title_index = child.get_full_sidebar().title_index().clone();
         let embed_sidebar_title_index = child.get_embed_sidebar().title_index().clone();
@@ -114,6 +121,7 @@ impl<'c, 'b: 'c, 'a: 'b> PendingPass<'a, 'b, 'c> {
             full_sidebar_index,
             embed_sidebar_index,
             open,
+            variables,
             title,
             full_sidebar_title_index,
             embed_sidebar_title_index,
@@ -128,12 +136,20 @@ impl<'c, 'b: 'c, 'a: 'b> PendingPass<'a, 'b, 'c> {
     ) -> Pending<'c> {
         let article = self.global_data.article(self.slug.as_str()).unwrap();
         let body_numberings = self.emit_body_numberings(&article.get_body().numberings);
-        let full_sidebar  = article.get_full_sidebar();
+        let full_sidebar = article.get_full_sidebar();
         let sidebar_show_children = self.emit_sidebar_show_children(full_sidebar.show_children());
         let sidebar_numberings = self.emit_sidebar_numberings(full_sidebar.numberings());
         let sidebar_anchors = self.emit_sidebar_anchors(full_sidebar.anchors());
         let embeds = self.emit_embeds(embeds);
         let anchors = article.get_anchors();
-        Pending::new(content, body_numberings,sidebar_show_children, sidebar_numberings,sidebar_anchors, embeds, anchors)
+        Pending::new(
+            content,
+            body_numberings,
+            sidebar_show_children,
+            sidebar_numberings,
+            sidebar_anchors,
+            embeds,
+            anchors,
+        )
     }
 }
