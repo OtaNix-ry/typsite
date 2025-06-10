@@ -181,8 +181,8 @@
 
 
 #let details(title, content) = {
-  let details = html.elem("span", attrs: (class: "fold-container", onclick: "this.classList.toggle('open')"))[
-    #html.elem("span", attrs: (class: "ellipsis"), title)
+  let details = html.elem("span", attrs: (class: "fold-container"))[
+    #html.elem("span", attrs: (class: "ellipsis", onclick: "this.parentNode.classList.toggle('open')"), title)
     #html.elem("span", attrs: (class: "hidden-content"), [\[ #content \]])
   ]
   details

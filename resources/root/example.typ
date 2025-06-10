@@ -46,7 +46,7 @@ $
 点@rise-up[我]能跳转到 #html-text(fill: red)[*崛起*]!
 
 #details([点我可以看一些好东西])[哈哈, #link("https://www.bilibili.com/video/BV1yaSHYNEen")[#html-text(fill: yellow.darken(15%))[_300颗够吗_]]], 还有#details([我])[
-#link("https://www.bilibili.com/video/BV1yaSHYNEen")[*永远*没有人看完这把刀塔还能#html-text(fill: purple.darken(15%))[绷得住]，记住，是#html-text(fill: red)[*永远*]]
+#link("https://www.bilibili.com/video/BV1hN411a7Ky")[*永远*没有人看完这把刀塔还能#html-text(fill: purple.darken(15%))[绷得住]，记住，是#html-text(fill: red)[*永远*]]
 ]
 
 == 好听的
