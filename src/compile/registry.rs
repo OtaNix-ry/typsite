@@ -1,5 +1,6 @@
 use crate::config::TypsiteConfig;
-use anyhow::*;
+use crate::util::error::log_err;
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -43,25 +44,33 @@ impl KeyRegistry {
         I: IntoIterator<Item = P>,
         P: AsRef<Path>,
     {
-        paths.into_iter().for_each(|path| {
-            self.register_article_path(config, path.as_ref());
-        });
+        paths
+            .into_iter()
+            .map(|path| self.register_article_path(config, path.as_ref()))
+            .for_each(log_err);
     }
+
     pub fn register_article_path(
         &mut self,
         config: &TypsiteConfig,
         path: &Path,
-    ) -> (Key, SlugPath) {
-        let slug = config.path_to_slug(path);
+    ) -> Result<(Key, SlugPath)> {
+        let slug = config.path_to_slug(path)?;
         let slug: Key = self.register_slug(slug);
+        let path = if path.starts_with(config.html_path) {
+            path.strip_prefix(config.html_path).unwrap()
+        } else {
+            path
+        };
         let arc: Arc<Path> = Arc::from(path);
-        (
+        let slug_with_path = (
             slug.clone(),
             self.article_paths
                 .entry(slug.to_string())
                 .or_insert(arc.clone())
                 .clone(),
-        )
+        );
+        Ok(slug_with_path)
     }
 
     pub fn slug(&self, slug: &str) -> Option<Key> {

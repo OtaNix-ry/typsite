@@ -1,14 +1,14 @@
 use crate::config::anchor::AnchorConfig;
 use crate::config::footer::FooterConfig;
 use crate::config::heading_numbering::HeadingNumberingConfig;
+use crate::config::highlight::CodeHightlightConfig;
 use crate::config::rewrite::RulesConfig;
 use crate::config::schema::SchemaConfig;
 use crate::config::section::SectionConfig;
-use crate::config::theme::ThemesConfig;
 use crate::util::html::Html;
-use crate::util::path::format_path_ref;
 use crate::util::path::{dir_name, file_stem};
-use anyhow::{Context, Result};
+use crate::util::path::{file_ext, format_path_ref};
+use anyhow::{Context, Result, anyhow};
 use embed::EmbedConfig;
 use sidebar::SidebarConfig;
 use std::path::Path;
@@ -18,17 +18,18 @@ pub mod anchor;
 pub mod embed;
 pub mod footer;
 pub mod heading_numbering;
+pub mod highlight;
 pub mod resources;
 pub mod rewrite;
 pub mod schema;
 pub mod section;
 pub mod sidebar;
-pub mod theme;
 
 const RULES_DIR: &str = "rewrite/";
 const SCHEMAS_DIR: &str = "schemas/";
 
 const THEMES_DIR: &str = "themes";
+const SYNTAXES_DIR: &str = "syntaxes";
 
 const SECTION_PATH: &str = "components/section.html";
 const HEADING_NUMBERING_PATH: &str = "components/heading-numbering.html";
@@ -51,14 +52,15 @@ pub struct TypsiteConfig<'a> {
     pub embed: EmbedConfig,
     pub rules: RulesConfig,
     pub schemas: SchemaConfig,
-    pub themes: ThemesConfig,
+    pub highlight: CodeHightlightConfig,
     config_path: &'a Path,
     pub typst_path: &'a Path,
     pub typst_root_name: String,
+    pub html_path: &'a Path,
 }
 
 impl<'a> TypsiteConfig<'a> {
-    pub fn load(config_path: &'a Path, typst_path: &'a Path) -> Result<Self> {
+    pub fn load(config_path: &'a Path, typst_path: &'a Path, html_path: &'a Path) -> Result<Self> {
         // Components
         let section = SectionConfig::load(config_path)?;
         let heading_numbering = HeadingNumberingConfig::load(config_path)?;
@@ -68,7 +70,7 @@ impl<'a> TypsiteConfig<'a> {
         let embed = EmbedConfig::load(config_path)?;
         let rules = RulesConfig::load(config_path)?;
         let schemas = SchemaConfig::load(config_path)?;
-        let themes = ThemesConfig::load(config_path)?;
+        let highlight = CodeHightlightConfig::load(config_path);
 
         let typst_path = format_path_ref(typst_path);
         let typst_root_name = dir_name(typst_path)
@@ -84,10 +86,11 @@ impl<'a> TypsiteConfig<'a> {
             sidebar,
             embed,
             schemas,
+            highlight,
             config_path,
             typst_path,
             typst_root_name,
-            themes,
+            html_path,
         };
         Ok(config)
     }
@@ -113,11 +116,26 @@ impl<'a> TypsiteConfig<'a> {
                 path_str if path_str.starts_with(RULES_DIR) => file_stem(path)
                     .and_then(|rule| self.rules.get(rule))
                     .and_then(|rule| rule.path.clone()),
-                path_str if path_str.starts_with(SCHEMAS_DIR) => file_stem(path)
-                    .and_then(|schema| self.schemas.get(schema).ok().map(|schema| schema.path.clone())),
-                path_str if path_str.starts_with(THEMES_DIR) => file_stem(path)
-                    .and_then(|theme| self.themes.path_exactly(theme))
-                    .cloned(),
+                path_str if path_str.starts_with(SCHEMAS_DIR) => {
+                    file_stem(path).and_then(|schema| {
+                        self.schemas
+                            .get(schema)
+                            .ok()
+                            .map(|schema| schema.path.clone())
+                    })
+                }
+                path_str if path_str.starts_with(THEMES_DIR) => {
+                    file_stem(path).and_then(|theme| self.highlight.find_theme_path(theme))
+                }
+                path_str if path_str.starts_with(SYNTAXES_DIR) => {
+                    file_stem(path).and_then(|stem| {
+                        file_ext(path).and_then(|it| match it.as_str() {
+                            "sublime-syntax" => self.highlight.find_syntax_path_by_stem(stem),
+                            "tmPreferences" => self.highlight.find_metadata_path_by_stem(stem),
+                            _ => None,
+                        })
+                    })
+                }
                 _ => None,
             }
         } else {
@@ -125,14 +143,24 @@ impl<'a> TypsiteConfig<'a> {
         }
     }
 
-    pub fn path_to_slug(&self, path: &Path) -> String {
-        self.format_slug(path.to_string_lossy().as_ref())
+    pub fn path_to_slug(&self, path: &Path) -> Result<String> {
+        let path = if path.starts_with(self.typst_path) {
+            path
+        } else if path.starts_with(self.html_path) {
+            path.strip_prefix(self.html_path).unwrap()
+        } else {
+            return Err(anyhow!("Can't find a slug for {:?}", path));
+        };
+        Ok(self.format_slug(path.to_string_lossy().as_ref()))
     }
 
     pub fn format_slug(&self, slug: &str) -> String {
         let slug = slug.replace("\\", "/");
         let slug = slug.trim_start_matches(self.typst_root_name.as_str());
-        let slug = slug.strip_suffix(".typ").unwrap_or(slug);
+        let slug = slug
+            .strip_suffix(".typ")
+            .or_else(|| slug.strip_suffix(".html"))
+            .unwrap_or(slug);
         if !slug.starts_with('/') {
             format!("/{slug}")
         } else {

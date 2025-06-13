@@ -22,6 +22,7 @@ pub struct MetaContents<'a> {
     // Content supported
     contents: HashMap<String, MetaContent<'a>>,
     replacement: OnceLock<HashMap<String, String>>,
+    parent: OnceLock<bool>,
     parent_replacement: OnceLock<HashMap<String, String>>,
 }
 
@@ -31,6 +32,7 @@ impl<'b, 'a: 'b> MetaContents<'a> {
             slug,
             contents,
             replacement: OnceLock::new(),
+            parent: OnceLock::new(),
             parent_replacement: OnceLock::new(),
         }
     }
@@ -50,7 +52,7 @@ impl<'b, 'a: 'b> MetaContents<'a> {
                 err.ok_typ(result)
             })
             .collect();
-        err.err_or(|| MetaContents::new(self_slug, contents)) 
+        err.err_or(|| MetaContents::new(self_slug, contents))
     }
 
     pub fn get(&self, key: &str) -> Option<Arc<str>> {
@@ -70,7 +72,7 @@ impl<'b, 'a: 'b> MetaContents<'a> {
         self.contents.keys().map(|k| k.as_str()).collect()
     }
 
-    fn init_replacement(&self, parent: bool) -> &HashMap<String, String> {
+    fn init_replacement(&self) -> &HashMap<String, String> {
         self.replacement.get_or_init(|| {
             let mut map = self
                 .contents
@@ -101,6 +103,7 @@ impl<'b, 'a: 'b> MetaContents<'a> {
 
             map.insert("{slug@anchor}".to_string(), slug[1..].to_string());
 
+            let parent = self.parent.get().cloned().unwrap_or(false);
             map.insert("{has-parent}".to_string(), parent.to_string());
             map.insert("{has_parent}".to_string(), parent.to_string());
 
@@ -127,39 +130,66 @@ impl<'b, 'a: 'b> MetaContents<'a> {
     }
     fn replacement(&self) -> Vec<(&str, &str)> {
         let parent_replacement = self.parent_replacement.get();
-        if let Some(parent) = parent_replacement {
-            self.init_replacement(true)
+        if let Some(parent_replacement) = parent_replacement {
+            self.init_replacement()
                 .iter()
-                .chain(parent.iter())
+                .chain(parent_replacement.iter())
                 .map(|(k, v)| (k.as_str(), v.as_str()))
                 .collect()
         } else {
-            self.init_replacement(false)
+            self.init_replacement()
                 .iter()
                 .map(|(k, v)| (k.as_str(), v.as_str()))
                 .collect()
         }
     }
 
-    pub fn init_parent_replacement<'c>(&self, global_data: &'c GlobalData<'a, 'b, 'c>) {
+    pub fn init_parent<'c>(&self, global_data: &'c GlobalData<'a, 'b, 'c>) {
+        let default_parent_slug= proj_options().ok().and_then(|options| options.default_metadata.graph.default_parent_slug(global_data));
+
+        let self_metadata = global_data.metadata(self.slug.as_str()).unwrap();
+        self.parent.get_or_init(|| {
+            
+            self_metadata.node.parent.is_some()
+                || default_parent_slug.as_ref().map(|default| default.as_str() != self.slug.as_str()).unwrap_or(false)
+        });
+        println!(
+            "[DEBUG] {}'s has-parent is {:?}",
+            self.slug,
+            self.parent.get()
+        );
         self.parent_replacement.get_or_init(|| {
-            let self_metadata = global_data.metadata(self.slug.as_str()).unwrap();
             self_metadata
                 .node
                 .parent
+                .clone()
+                .or_else(|| {
+                    if self.parent.get().cloned().unwrap_or(false) {
+                        default_parent_slug
+                    } else {
+                        None
+                    }
+                })
                 .as_ref()
-                .and_then(|it| {
-                    global_data.metadata(it.as_str()).map(|it| {
-                        it.contents
-                            .init_replacement(it.node.parent.is_some())
-                            .iter()
-                            .map(|(k, v)| {
-                                let key = &k[0..k.len() - 1];
-                                let key = format!("{key}@parent}}");
-                                (key, v.to_string())
-                            })
-                            .collect::<HashMap<_, _>>()
-                    })
+                .and_then(|parent| {
+                    println!(
+                        "[DEBUG] {}'s parent (replacements) is {:?}",
+                        self.slug, parent
+                    );
+                    global_data
+                        .metadata(parent.as_str())
+                        .map(|parent_metadata| {
+                            parent_metadata
+                                .contents
+                                .init_replacement()
+                                .iter()
+                                .map(|(k, v)| {
+                                    let key = &k[0..k.len() - 1];
+                                    let key = format!("{key}@parent}}");
+                                    (key, v.to_string())
+                                })
+                                .collect::<HashMap<_, _>>()
+                        })
                 })
                 .unwrap_or_default()
         });

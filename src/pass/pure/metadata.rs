@@ -1,6 +1,5 @@
 use crate::compile::proj_options;
-use crate::compile::registry::{Key, KeyRegistry};
-use crate::config::TypsiteConfig;
+use crate::compile::registry::Key;
 use crate::ir::article::sidebar::{HeadingNumberingStyle, SidebarType};
 use crate::ir::metadata::Metadata;
 use crate::ir::metadata::content::{MetaContent, MetaContents};
@@ -25,23 +24,24 @@ pub struct MetadataBuilder<'a> {
 }
 
 impl<'a> MetadataBuilder<'a> {
-    pub fn new(self_slug: Key, config: &'a TypsiteConfig, registry: &KeyRegistry) -> Self {
+    pub fn new(self_slug: Key) -> Self {
         let options = proj_options().unwrap();
 
         let heading_numbering_style = options.default_metadata.options.heading_numbering;
         let sidebar_type = options.default_metadata.options.sidebar_type;
-        let parent = options
-            .default_metadata
-            .graph
-            .parent
-            .as_ref()
-            .and_then(|parent| {
-                let parent = config.format_slug(parent);
-                registry
-                    .know(parent, "default_metadata.graph.parent", "options.toml")
-                    .ok()
-            })
-            .filter(|parent| parent.as_str() != self_slug.as_str());
+        let parent = None;
+            // options
+            // .default_metadata
+            // .graph
+            // .parent
+            // .as_ref()
+            // .and_then(|parent| {
+            //     let parent = config.format_slug(parent);
+            //     registry
+            //         .know(parent, "default_metadata.graph.parent", "options.toml")
+            //         .ok()
+            // })
+            // .filter(|parent| parent.as_str() != self_slug.as_str());
 
         Self {
             slug: self_slug,
@@ -58,7 +58,7 @@ impl<'a> MetadataBuilder<'a> {
 
     pub fn intake_meta_graph(&mut self, kind: &str, slug: Key) {
         if self.slug.as_str() == slug.as_str() {
-            println!(
+            eprintln!(
                 "[WARN] MetadataBuilder: An article's parent cannot be itself! {}",
                 self.slug
             );
@@ -75,7 +75,7 @@ impl<'a> MetadataBuilder<'a> {
                 self.children.insert(slug);
             }
             _ => {
-                println!("[WARN] MetadataBuilder: Unknown metadata graph kind: {kind}");
+                eprintln!("[WARN] MetadataBuilder: Unknown metadata graph kind: {kind}");
             }
         }
     }
@@ -89,7 +89,7 @@ impl<'a> MetadataBuilder<'a> {
                 self.sidebar_type = SidebarType::from(value.as_ref());
             }
             _ => {
-                println!("[WARN] Unknown metadata option: {key}");
+                eprintln!("[WARN] Unknown metadata option: {key}");
             }
         }
     }

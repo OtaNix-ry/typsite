@@ -2,13 +2,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
+
 #[derive(Debug)]
 pub struct CompileOptions {
     pub watch: bool,
     pub short_slug: bool,
     pub pretty_url: bool,
 }
-
 
 pub const OPTIONS_PATH: &str = "options.toml";
 #[derive(Debug, Deserialize)]
@@ -42,13 +42,26 @@ pub struct CodeFallbackStyle {
     pub light: String,
 }
 pub mod metadata {
-    use crate::ir::article::sidebar::{HeadingNumberingStyle, SidebarType};
+    use crate::{
+        compile::{proj_options, registry::Key},
+        ir::article::{
+            data::GlobalData,
+            sidebar::{HeadingNumberingStyle, SidebarType},
+        },
+    };
     use serde::{Deserialize, Serialize};
-    use std::{collections::HashMap, sync::Arc};
+    use std::{
+        collections::HashMap,
+        sync::{Arc, OnceLock},
+    };
 
     #[derive(Debug, Deserialize)]
     pub struct Content {
-        #[serde(flatten, default = "HashMap::new", deserialize_with = "deserialize_meta_content")]
+        #[serde(
+            flatten,
+            default = "HashMap::new",
+            deserialize_with = "deserialize_meta_content"
+        )]
         pub default: HashMap<String, Arc<str>>,
     }
     #[derive(Debug, Deserialize, Serialize)]
@@ -65,6 +78,30 @@ pub mod metadata {
             deserialize_with = "deserialize_optional_parent"
         )]
         pub parent: Option<String>,
+        #[serde(skip)]
+        default_parent_slug: OnceLock<Option<Key>>,
+    }
+    impl Graph {
+        pub fn default_parent_slug<'a, 'b, 'c>(&self, global_data: &'c GlobalData<'a,'b,'c>) -> Option<Key>
+        where
+            'a: 'b,
+            'b: 'c,
+        {
+            self.default_parent_slug
+                .get_or_init(|| {
+                    proj_options().ok().and_then(|it| {
+                        it.default_metadata
+                            .graph
+                            .parent
+                            .as_ref()
+                            .map(|default| global_data.config.format_slug(default))
+                            .and_then(|default| {
+                                global_data.article(&default).map(|it| it.slug.clone())
+                            })
+                    })
+                })
+                .clone()
+        }
     }
 
     pub fn default_sidebar_type() -> SidebarType {
@@ -84,14 +121,17 @@ pub mod metadata {
         let s: String = Deserialize::deserialize(deserializer)?;
         Ok(if s.trim().is_empty() { None } else { Some(s) })
     }
-    pub fn deserialize_meta_content<'de, D>(deserializer: D) -> Result<HashMap<String,Arc<str>>, D::Error>
+    pub fn deserialize_meta_content<'de, D>(
+        deserializer: D,
+    ) -> Result<HashMap<String, Arc<str>>, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let s: HashMap<String,String> = Deserialize::deserialize(deserializer)?;
-        let map = s.into_iter()
-            .map(|(key,value)| (key, Arc::from(value)))
-            .collect::<HashMap<String,Arc<str>>>();
+        let s: HashMap<String, String> = Deserialize::deserialize(deserializer)?;
+        let map = s
+            .into_iter()
+            .map(|(key, value)| (key, Arc::from(value)))
+            .collect::<HashMap<String, Arc<str>>>();
         Ok(map)
     }
 }

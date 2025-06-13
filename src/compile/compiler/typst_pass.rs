@@ -1,11 +1,10 @@
 use crate::compile::error::TypError;
 use crate::config::TypsiteConfig;
 use rayon::prelude::*;
-use std::collections::HashSet;
 use std::sync::Arc;
 use std::{
     fs::create_dir_all,
-    path::{Path, PathBuf},
+    path::Path,
     result::Result::Ok,
 };
 
@@ -14,7 +13,7 @@ use crate::util::fs::create_all_parent_dir;
 use anyhow::{Context, Error};
 use std::process::Command;
 
-use super::ErrorArticles;
+use super::{ErrorArticles, PathBufs};
 
 pub fn compile_typst(root: &Path, input: &Path, output: &Path) -> anyhow::Result<()> {
     let output = if cfg!(target_os = "windows") {
@@ -55,7 +54,7 @@ pub fn compile_typsts(
     config: &TypsiteConfig<'_>,
     typst_path: &Path,
     html_cache_path: &Path,
-    changed_typst_paths: &HashSet<PathBuf>,
+    changed_typst_paths: &PathBufs,
 ) -> ErrorArticles {
     changed_typst_paths
         .par_iter()
@@ -65,9 +64,23 @@ pub fn compile_typsts(
             html_path.set_extension("html");
             let cache_output = html_cache_path.join(&html_path);
             create_dir_all(cache_output.parent().unwrap()).unwrap();
-            (slug,cache_output.clone(),compile_typst(typst_path, typ_path, &cache_output))
-        }).filter_map(|(slug, path,res)| res.err().map(|err|{
-            let err = TypError::new_with(Arc::from(slug), vec![err]);
-            (path, format!("{err}"))
-        })).collect()
+            (
+                slug,
+                cache_output.clone(),
+                compile_typst(typst_path, typ_path, &cache_output),
+            )
+        })
+        .filter_map(|(slug, path, res)| {
+            if let Ok(slug) = slug {
+                res.err().map(|err| {
+                    let err = TypError::new_with(Arc::from(slug), vec![err]);
+                    (path, format!("{err}"))
+                })
+            } else if let Err(err) = slug {
+                Some((path, format!("{err}")))
+            } else {
+                None
+            }
+        })
+        .collect()
 }

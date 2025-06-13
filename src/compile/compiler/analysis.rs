@@ -1,8 +1,8 @@
 use super::cache::dep::RevDeps;
+use crate::compile::compiler::PathBufs;
 use crate::compile::registry::Key;
 use crate::ir::article::Article;
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
 
 pub(super) type Relation = HashMap<Key, HashSet<Key>>;
 
@@ -61,9 +61,9 @@ pub(super) fn apply_parents_and_backlinks<'b, 'a: 'b>(
 }
 pub(super) fn analyse_slugs_to_update_and_load<'b, 'a: 'b>(
     changed_article_slugs: &HashSet<Key>,
-    updated_typst_paths: &mut HashSet<PathBuf>,
-    changed_config_paths: &HashSet<PathBuf>,
-    updated_articles: &HashMap<Key, Article<'a>>,
+    updated_typst_paths: &mut PathBufs,
+    changed_config_paths: &PathBufs,
+    loaded_articles: &HashMap<Key, Article<'a>>,
     rev_dep: &RevDeps,
 ) -> (HashSet<Key>, HashSet<Key>) {
     let mut slugs_to_update = HashSet::new();
@@ -84,7 +84,7 @@ pub(super) fn analyse_slugs_to_update_and_load<'b, 'a: 'b>(
         articles: &HashMap<Key, Article<'a>>,
         slug: &Key,
         update: &mut HashSet<Key>,
-        updated_paths: &mut HashSet<PathBuf>,
+        updated_paths: &mut PathBufs,
     ) {
         if let Some(article) = articles.get(slug) {
             update.insert(slug.clone()); // Only the existing article is collected.
@@ -133,12 +133,12 @@ pub(super) fn analyse_slugs_to_update_and_load<'b, 'a: 'b>(
     // Make sure all files that need to update are collected in slugs_need_to_update
     slugs.into_iter().for_each(|slug| {
         spread_parent(
-            updated_articles,
+            loaded_articles,
             &slug,
             &mut slugs_to_update,
             updated_typst_paths,
         );
-        spread_child(updated_articles, &slug, &mut slugs_to_load);
+        spread_child(loaded_articles, &slug, &mut slugs_to_load);
     });
 
     (slugs_to_update, slugs_to_load)

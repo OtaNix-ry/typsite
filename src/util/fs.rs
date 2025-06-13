@@ -1,5 +1,5 @@
 use crate::util::error::TypsiteError;
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -23,10 +23,19 @@ pub fn write_into_file(path: PathBuf, content: &str, source: &str) -> anyhow::Re
 pub fn remove_file<P: AsRef<Path>>(path: P, source: &str) -> anyhow::Result<()> {
     std::fs::remove_file(path.as_ref()).context(format!("Failed to remove {source}: {:?}",path.as_ref()))
 }
-pub fn remove_file_unwrap<P: AsRef<Path>>(path: P, source: &str) {
+pub fn remove_file_log_err<P: AsRef<Path>>(path: P, source: &str) {
     remove_file(path, source).unwrap_or_else(|err| eprintln!("[WARN] {err}"));
 }
+pub fn remove_file_ignore<P: AsRef<Path>>(path: P) {
+    std::fs::remove_file(path.as_ref()).unwrap_or(());
+}
 
+pub fn copy_file<P: AsRef<Path>,Q: AsRef<Path>>(from: P, to: Q) -> anyhow::Result<()> {
+    create_all_parent_dir(to.as_ref())?;
+    std::fs::copy(from.as_ref(),to.as_ref()).map_err(|err| {
+        anyhow!("Failed to copy {:?} to {:?}: {err}",from.as_ref(),to.as_ref())
+    }).map(|_| ())
+}
 #[macro_export]
 macro_rules! walk_glob {
     ($($arg:tt)*) => {

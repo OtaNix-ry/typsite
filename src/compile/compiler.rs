@@ -3,16 +3,18 @@ use crate::compile::compiler::cache::dep::RevDeps;
 use crate::compile::options::CompileOptions;
 use crate::compile::registry::KeyRegistry;
 use crate::config::TypsiteConfig;
-use crate::util::path::{file_ext, format_path};
+use crate::util::html::OutputHtml;
+use crate::util::path::format_path;
 use analysis::*;
 use anyhow::*;
 use html_pass::pass_html;
 use initializer::{Input, initialize};
-use output_sync::sync_files_to_output;
+use output_sync::{Output, sync_files_to_output};
 use page_composer::{PageData, compose_pages};
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
+use std::sync::Arc;
 use typst_pass::compile_typsts;
 
 use super::watch::watch;
@@ -31,14 +33,17 @@ mod cache {
     pub mod monitor;
 }
 
+type PathBufs = HashSet<PathBuf>;
 type ErrorArticles = Vec<(PathBuf, String)>;
+type UpdatedPages<'a> = Vec<(Arc<Path>, OutputHtml<'a>)>;
 
 pub struct Compiler {
-    typst_path: PathBuf,             // Typst root
+    typst_path: PathBuf,            // Typst root
     html_cache_path: PathBuf, // Typst-export-html path (in which are raw typst-html-export files)
     config_path: PathBuf,     // Config root
     pub(crate) cache_path: PathBuf, // Cache root
-    pub(crate) output_path: PathBuf, // Output
+    pub(crate) output_path: PathBuf,
+    assets_path: PathBuf, // Output
 }
 
 impl Compiler {
@@ -53,6 +58,7 @@ impl Compiler {
         let cache_path = format_path(cache_path);
         let html_cache_path = cache_path.join("html");
         let config_path = format_path(config_path);
+        let assets_path = config_path.join("assets");
         let typst_path = format_path(typst_path);
         let output_path = format_path(output_path);
         Ok(Self {
@@ -60,6 +66,7 @@ impl Compiler {
             cache_path,
             typst_path,
             config_path,
+            assets_path,
             output_path,
         })
     }
@@ -73,6 +80,7 @@ impl Compiler {
             &self.typst_path,
             &self.html_cache_path,
             &self.config_path,
+            &self.assets_path,
         )?;
         // If all files are not changed, return
         if input.unchanged() {
@@ -86,10 +94,13 @@ impl Compiler {
             changed_typst_paths,
             deleted_typst_paths,
             changed_config_paths,
-            deleted_config_paths,
             changed_non_typst,
             deleted_non_typst,
+            changed_assets,
+            deleted_assets,
+            retry_html_paths,
             overall_compile_needed,
+            ..
         } = input;
 
         let mut registry = KeyRegistry::new();
@@ -97,14 +108,12 @@ impl Compiler {
         // Article Manager, which manages all articles' slugs and paths
         let mut article_cache = ArticleCache::new(&self.cache_path);
 
-        // If it's init, register all typst paths
-        let error_cache_articles = if overall_compile_needed {
+        if overall_compile_needed {
             registry.register_paths(&config, changed_typst_paths.iter());
-            vec![]
-        } else {
-            // Load Article Cache If needed
-            article_cache.load(&config, &deleted_typst_paths, &mut registry)
-        };
+        }
+        registry.register_paths(&config, retry_html_paths.iter());
+
+        let error_cache_articles = article_cache.load(&config, &deleted_typst_paths, &mut registry);
 
         let proj_options_errors = verify_proj_options(&config, &registry)?;
 
@@ -117,20 +126,15 @@ impl Compiler {
             &changed_typst_paths,
         );
 
-        // Get updated html files ( which are compiled from typst files )
-        let mut changed_html_paths: Vec<PathBuf> = monitor
-            .refresh_html(&self.html_cache_path, overall_compile_needed)?
-            .into_iter()
-            .collect();
+        let mut changed_html_paths =
+            monitor.refresh_html(&deleted_typst_paths, overall_compile_needed)?;
+
+        changed_html_paths.extend(retry_html_paths);
 
         //3. Pass HTML
         // Pass updated html files
-        let (changed_articles, error_pending_articles) = pass_html(
-            &self.html_cache_path,
-            &config,
-            &mut registry,
-            &mut changed_html_paths,
-        );
+        let (changed_articles, error_pending_articles) =
+            pass_html(&config, &mut registry, &mut changed_html_paths);
 
         let changed_article_slugs = changed_articles
             .iter()
@@ -142,16 +146,16 @@ impl Compiler {
         let (parents, backlinks) = analyse_parents_and_backlinks(&changed_articles);
 
         // Collect all updated articles
-        let mut updated_articles = article_cache
+        let mut loaded_articles = article_cache
             .drain() // Drain all articles from Article Manager ( for a simpler lifetime)
             .chain(changed_articles.into_iter().map(|a| (a.slug.clone(), a)))
             .collect::<HashMap<_, _>>();
 
-        // Update parents and backlinks into all articles apply_parents_and_backlinks(&mut updated_articles, parents, backlinks);
-        apply_parents_and_backlinks(&mut updated_articles, parents, backlinks);
+        // Update parents and backlinks into all loaded articles
+        apply_parents_and_backlinks(&mut loaded_articles, parents, backlinks);
 
         // Load Reverse Dependency Cache
-        let mut rev_dependency = RevDeps::load(
+        let mut rev_dep = RevDeps::load(
             &config,
             &self.cache_path,
             &deleted_typst_paths,
@@ -161,59 +165,54 @@ impl Compiler {
         // Refresh Dependency Cache
         // in which we record all the dependencies(with its exactly indexes) of each article,
         // and the Reverse Dependencies of each file path are collected. ( Reverse Dependencies = Map<Path -> The files that depend on this file>)
-        rev_dependency.refresh(&config, &registry, &updated_articles);
+        rev_dep.refresh(&config, &registry, &loaded_articles);
 
         // 5. Compose pages
         let PageData {
-            output,
+            updated_pages,
             cache,
-            failed: error_page_articles,
+            error_pages,
         } = compose_pages(
             &config,
             changed_article_slugs,
             changed_typst_paths,
             &changed_config_paths,
-            &updated_articles,
-            rev_dependency,
+            &loaded_articles,
+            rev_dep,
             overall_compile_needed,
         )?;
 
-        let updated = !output.is_empty();
+        let updated = !loaded_articles.is_empty();
         // 6. Update cache
-        article_cache.refresh(&mut registry, updated_articles);
+        article_cache.refresh(&mut registry, loaded_articles);
         article_cache.write_cache(cache)?;
 
         // 7. Sync files to output
-        let assets_path = self.config_path.join("assets");
-        let changed_assets = changed_config_paths
-            .into_iter()
-            .filter(|path| {
-                path.starts_with(&assets_path) && file_ext(path) != Some("html".to_string())
-            })
-            .collect();
-        let deleted_assets = deleted_config_paths
-            .into_iter()
-            .filter(|path| {
-                path.starts_with(&assets_path) && file_ext(path) != Some("html".to_string())
-            })
-            .collect();
-        sync_files_to_output(
+        let deleted_pages = deleted_typst_paths;
+
+        let mut error_articles = Vec::new();
+        error_articles.extend(error_typst_articles);
+        error_articles.extend(error_cache_articles);
+        error_articles.extend(error_pending_articles);
+        error_articles.extend(error_pages);
+
+        let output = Output {
             monitor,
-            &assets_path,
-            &self.typst_path,
-            &self.html_cache_path,
-            &self.output_path,
-            output,
+            assets_path: &self.assets_path,
+            typst_path: &self.typst_path,
+            html_cache_path: &self.html_cache_path,
+            output_path: &self.output_path,
+            updated_pages,
+            deleted_pages,
             proj_options_errors,
-            error_typst_articles,
-            error_cache_articles,
-            error_pending_articles,
-            error_page_articles,
+            error_articles,
             changed_non_typst,
             deleted_non_typst,
             changed_assets,
             deleted_assets,
-        );
+        };
+
+        sync_files_to_output(output);
 
         Ok(updated)
     }
