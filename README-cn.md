@@ -1,5 +1,10 @@
 
 # Typsite
+[ [English](./README.md) | **中文** ]
+
+<div style="text-align: center;">
+<img src="./icon.png" width="37.5%"/>
+</div>
 
 ## 1. 介绍
 
@@ -12,6 +17,7 @@ Typsite 是一个用于构建静态网站的工具，其文章内容由纯 `Typs
 - 框架: 标题递增、小节模板、侧边栏、页脚
 - 富文本：段落、小节、引用、代码块、数学公式、注脚、页面嵌入
 - 支持现代 Web 技术规范，如 HTML5、CSS3 和 JavaScript（ES6+）
+- 增量编译, 实时预览
 
 ## 3. Typst 简介
 
@@ -56,98 +62,11 @@ cd typsite
 nix build .
 ```
 
-## 5. 初始化
-
-通过 `typsite init`, 可以在当前文件夹初始化 Typsite.
-
-```
-.
-├── root           ---  typst 根目录
-│   ├── index.typ  --- 文章
-│   └── lib.typ    --- typsite 库文件
-├── .typsite       --- typsite 配置目录
-│   ├── assets     ---  资源目录 (会同步到输出目录)
-│   ├── components ---  组件模板
-│   ├── themes     ---  代码高亮
-│   ├── rewrite    ---  重写器模板
-│   ├── schemas    ---  页面模板
-│   └── options.toml ---  项目配置
-├── .cache         ---  缓存目录
-└── publish        ---  输出目录
-```
-
-## 6. 命令行
-
-```shell
-用法: typsite <COMMAND>
-
-命令:
-  init     在指定目录中初始化一个新的 typsite 项目
-  compile  编译或监听项目，指定输入和输出目录 [别名: c]
-  clean    清除缓存和输出目录
-  help     打印此消息或指定子命令的帮助信息
-
-选项:
-  -h, --help     打印帮助
-  -V, --version  打印版本信息
-```
-
-### 6.1 init
-
-```shell
-在指定目录中初始化一个新的 typsite 项目
-
-用法: typsite init [OPTIONS]
-
-选项:
-  -d, --dir <DIR>  项目根目录 [默认: ./]
-  -h, --help       打印帮助
-```
-
-### 6.2 compile
-
-```shell
-编译或监听项目，指定输入和输出目录
-
-用法: typsite compile [OPTIONS]
-
-选项:
-      --port <PORT>      服务端口 [默认: 0]
-      --config <CONFIG>  项目 html 配置路径 [默认: ./.typsite]
-      --cache <CACHE>    缓存目录 [默认: ./.cache]
-  -i, --input <INPUT>    Typst 根目录，存放 typst 文件的位置 [默认: ./root] [别名: --i]
-  -o, --output <OUTPUT>  输出目录 [默认: ./publish] [别名: --o]
-      --no-pretty-url
-      --no-short-slug
-  -h, --help             打印帮助
-```
-
-### 6.3 clean
-
-```shell
-清除缓存和输出目录
-
-用法: typsite clean [OPTIONS]
-
-选项:
-  -o, --output <OUTPUT>  输出目录 [默认: ./publish]
-  -c, --cache <CACHE>    缓存目录，用于存储原始 typst_html_export 内容 [默认: ./.cache]
-  -h, --help             打印帮助
-```
-
-## 7. 架构 & 流程
+## 5. 架构 & 流程
 
 ![](./process.png)
 
-## 8. 配置
-
-你可以在项目中的 `options.toml` 和 `.typsite` 目录查看和修改配置。
-基于这些配置, 你可以完全地自定义你的整个站点.
-
-- `schema`: 页面模板, 负责处理页面框架
-- `components` / `rewrites`: 组件/重写器, 组成页面内容
-- `assets`: 资源文件目录, 会在compile时自动同步到输出目录
-- `themes`: 代码高亮文件
+你可以在 [Typsite 文档](https://typ.rowlib.com) 查看更多教程与示例
 
 ## 贡献 
 
