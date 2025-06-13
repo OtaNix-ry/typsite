@@ -153,11 +153,6 @@ impl<'b, 'a: 'b> MetaContents<'a> {
             self_metadata.node.parent.is_some()
                 || default_parent_slug.as_ref().map(|default| default.as_str() != self.slug.as_str()).unwrap_or(false)
         });
-        println!(
-            "[DEBUG] {}'s has-parent is {:?}",
-            self.slug,
-            self.parent.get()
-        );
         self.parent_replacement.get_or_init(|| {
             self_metadata
                 .node
@@ -172,10 +167,6 @@ impl<'b, 'a: 'b> MetaContents<'a> {
                 })
                 .as_ref()
                 .and_then(|parent| {
-                    println!(
-                        "[DEBUG] {}'s parent (replacements) is {:?}",
-                        self.slug, parent
-                    );
                     global_data
                         .metadata(parent.as_str())
                         .map(|parent_metadata| {
