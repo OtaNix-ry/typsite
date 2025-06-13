@@ -2,6 +2,10 @@
 # Typsite
 [ **English** | [中文](./README-cn.md) ]
 
+<div style="text-align: center;">
+<img src="./icon.png" width="37.5%"/>
+</div>
+
 ## 1. Introduction
 
 Typsite is a static site generator (SSG) that uses pure `Typst` for content creation. It processes these `Typst` files to generate a complete static website.
@@ -12,6 +16,8 @@ Typsite is a static site generator (SSG) that uses pure `Typst` for content crea
 -   Framework: Incremental headings, section templates, sidebar, footer
 -   Rich Text: Paragraphs, sections, quotes, code blocks, math formulas, footnotes, page embeds
 -   Support for modern web technologies: HTML5, CSS3, and JavaScript (ES6+)
+-   Incremental compilation and real-time preview
+
 
 ## 3. About Typst
 
@@ -55,96 +61,11 @@ cd typsite
 nix build .
 ```
 
-## 5. Initialization
-
-You can initialize a Typsite project in the current directory using typsite init.
-```
-.
-├── root           --- Typst root directory
-│   ├── index.typ  --- Article file
-│   └── lib.typ    --- Typsite library file
-├── .typsite       --- Typsite configuration directory
-│   ├── assets     --- Asset directory (synced to the output directory)
-│   ├── components --- Component templates
-│   ├── themes     --- Code highlighting themes
-│   ├── rewrite    --- Rewriter templates
-│   ├── schemas    --- Page templates
-│   └── options.toml --- Project configuration
-├── .cache         --- Cache directory
-└── publish        --- Output directory
-```
-
-## 6. Command Line
-```
-Usage: typsite <COMMAND>
-
-Commands:
-  init     Initialize a new typsite project in the specified directory
-  compile  Compile or watch the project, specifying input and output directories [alias: c]
-  clean    Clear cache and output directories
-  help     Print this message or the help of the given subcommand(s)
-
-Options:
-  -h, --help     Print help
-  -V, --version  Print version information
-
-```
-### 6.1 init
-Initialize a new typsite project in the specified directory
-
-```
-Usage: typsite init [OPTIONS]
-
-Options:
-  -d, --dir <DIR>  Project root directory [default: ./]
-  -h, --help       Print help
-
-```
-### 6.2 compile
-Compile or watch the project, specifying input and output directories
-
-```
-Usage: typsite compile [OPTIONS]
-
-Options:
-      --port <PORT>      Server port [default: 0]
-      --config <CONFIG>  Project HTML configuration path [default: ./.typsite]
-      --cache <CACHE>    Cache directory [default: ./.cache]
-  -i, --input <INPUT>    Typst root directory, where typst files are located [default: ./root] [alias: --i]
-  -o, --output <OUTPUT>  Output directory [default: ./publish] [alias: --o]
-      --no-pretty-url
-      --no-short-slug
-  -h, --help             Print help
-
-```
-### 6.3 clean
-Clear cache and output directories
-
-```
-Usage: typsite clean [OPTIONS]
-
-Options:
-  -o, --output <OUTPUT>  Output directory [default: ./publish]
-  -c, --cache <CACHE>    Cache directory, used to store raw typst_html_export content [default: ./.cache]
-  -h, --help             Print help
-
-```
-## 7. Architecture & Flow
+## 5. Architecture & Flow
 
 ![alt text](./process.png)
 
-## 8. Configuration
-
-You can view and modify the configuration in the **options.toml** file and the **.typsite** directory within your project.
-Based on these configurations, you can fully customize your entire site.
-
-- `schemas`: Page templates, responsible for the page structure/framework.
-
-- `components` / `rewrites`: Components/Rewriters, which make up the page content.
-
-- `assets`: Directory for static assets, automatically synced to the output directory during compilation.
-
-- `themes`: Code highlighting theme files.
+Here's more: [Typsite Documant](https://typ.rowlib.com/en/)
 
 ## Contribution
 
