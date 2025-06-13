@@ -24,7 +24,7 @@
         };
 
         projectName = "typsite";
-        projectVersion = "0.1.0";
+        projectVersion = "0.1.4";
         commonRustFlags = ["--cfg" "tokio_unstable"];
         rustToolchain = pkgs.rust-bin.nightly.latest.default.override {
           extensions = ["rust-src" "clippy" "rustfmt"];
