@@ -35,10 +35,10 @@ impl TagRewritePass for CitePass {
         &self,
         attrs: &HashMap<String, String>,
         pass: &PurePass<'a, '_>,
-    ) -> Option<HashSet<Source>> {
+    ) -> Result<HashSet<Source>> {
         let slug = &attrs["slug"];
-        let slug = pass.registry.slug(slug.as_str())?;
-        Some([Source::Article(slug)].into_iter().collect())
+        let slug = pass.registry.know(slug.to_string(), "Cite", &pass.slug)?;
+        Ok([Source::Article(slug)].into_iter().collect())
     }
 
     fn impure_start<'c, 'b: 'c, 'a: 'b>(

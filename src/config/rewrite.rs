@@ -123,7 +123,7 @@ impl<'b, 'a: 'b> TagRewriteRule {
         &self,
         attrs: &HashMap<String, String>,
         passor: &PurePass<'a, '_>,
-    ) -> Option<HashSet<Source>> {
+    ) -> anyhow::Result<HashSet<Source>> {
         self.pass.dependents(attrs, passor)
     }
 

@@ -1,9 +1,10 @@
+use crate::compile::compiler::PathBufs;
 use crate::compile::registry::{Key, KeyRegistry};
 use crate::config::TypsiteConfig;
-use crate::ir::article::dep::UpdatedIndex;
 use crate::ir::article::Article;
+use crate::ir::article::dep::UpdatedIndex;
 use crate::util::error::{log_err, log_err_or_ok};
-use crate::util::fs::{remove_file, write_into_file};
+use crate::util::fs::{remove_file_ignore, write_into_file};
 use crate::util::path::relative_path;
 use crate::walk_glob;
 use anyhow::*;
@@ -24,19 +25,16 @@ impl<'a> RevDeps {
     pub fn load(
         config: &'a TypsiteConfig<'a>,
         cache_path: &Path,
-        deleted: &HashSet<PathBuf>,
+        deleted: &PathBufs,
         registry: &mut KeyRegistry,
     ) -> Self {
         let deps_path = cache_path.join("deps");
         // Remove deleted dep files
-        deleted
-            .iter()
-            .map(|path| {
-                let mut path = path.clone();
-                path.add_extension("dep");
-                remove_file(path, "dependency")
-            })
-            .for_each(log_err);
+        deleted.iter().for_each(|path| {
+            let mut path = path.clone();
+            path.add_extension("dep");
+            remove_file_ignore(path);
+        });
 
         let mut cache = HashMap::new();
         let deps = walk_glob!("{}/**/*.dep", deps_path.display())
@@ -56,15 +54,18 @@ impl<'a> RevDeps {
             .collect::<Vec<Result<(PathBuf, HashSet<String>)>>>()
             .into_iter()
             .filter_map(log_err_or_ok)
-            .map(|(path, dep)| {
-                let path = config
-                    .path_ref(&path)
-                    .unwrap_or(registry.register_article_path(config, &path).1);
+            .filter_map(|(path, dep)| {
+                let path = config.path_ref(&path).or_else(|| {
+                    config
+                        .path_to_slug(&path)
+                        .ok()
+                        .and_then(|slug| registry.path(&slug))
+                });
                 let dep = dep
                     .into_iter()
                     .filter_map(|slug| registry.slug(slug.as_str()))
                     .collect();
-                (path, dep)
+                path.map(|path| (path, dep))
             });
         cache.extend(deps);
         Self {
@@ -124,7 +125,7 @@ impl<'a> RevDeps {
                 let content = serde_json::to_string(&dep).context("Failed to serialize dep")?;
                 let mut dep_path = self.deps_path.join(path.as_ref());
                 dep_path.add_extension("dep");
-                write_into_file(dep_path, &content,"dependency")
+                write_into_file(dep_path, &content, "dependency")
             })
             .for_each(log_err);
     }

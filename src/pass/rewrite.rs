@@ -72,8 +72,8 @@ pub trait TagRewritePass: Id + Atom + Send + Sync + Purity {
         &self,
         attrs: &HashMap<String, String>,
         pass: &PurePass<'a, '_>,
-    ) -> Option<HashSet<Source>> {
-        None
+    ) -> Result<HashSet<Source>> {
+        Ok(HashSet::default())
     }
 
     // If pure, it can pass HTML without MetaData

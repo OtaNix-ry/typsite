@@ -1,8 +1,9 @@
 use std::fs;
 
-use crate::compile::options::CompileOptions;
 use crate::compile::compiler::Compiler;
+use crate::config::highlight::CodeHightlightConfig;
 use crate::config::resources::copy_default_typsite;
+use crate::compile::options::CompileOptions;
 use anyhow::{Context, Ok, Result};
 use clap::Parser;
 use std::path::Path;
@@ -25,6 +26,7 @@ impl Executor {
             Command::Init(init_cmd) => Self::execute_init(init_cmd),
             Command::Compile(compile_cmd) => Self::execute_compile(compile_cmd).await,
             Command::Clean(clean_cmd) => Self::execute_clean(clean_cmd),
+            Command::Syntect(syntect_cmd) => Self::execute_syntect(syntect_cmd),
         }
     }
 
@@ -69,7 +71,7 @@ impl Executor {
         Ok(())
     }
 
-    fn clean(path:&Path) -> Result<()> {
+    fn clean(path: &Path) -> Result<()> {
         if path.exists() {
             println!("  - Cleaning dir: {path:?}");
             fs::remove_dir_all(path).context(format!("Failed to clean {path:?}"))?;
@@ -95,6 +97,14 @@ impl Executor {
         }
         Ok(())
     }
+
+    fn execute_syntect(syntect_cmd: SyntectCmd) -> Result<()> {
+        let config_path = Path::new(&syntect_cmd.config);
+        let config = CodeHightlightConfig::load(config_path);
+        println!("{config}");
+
+        Ok(())
+    }
 }
 
 #[derive(clap::Subcommand)]
@@ -108,6 +118,10 @@ enum Command {
 
     /// Clean the cache & output directory.
     Clean(CleanCmd),
+
+    /// Check syntect syntaxes & themes
+    #[command(visible_alias = "s")]
+    Syntect(SyntectCmd),
 }
 
 #[derive(clap::Args)]
@@ -122,7 +136,7 @@ struct CompileCmd {
     /// Serve port
     #[arg(long, default_value_t = 0)]
     port: u16,
-    /// Project html.
+    /// Project config
     #[arg(long, default_value_t = format!("./.typsite"), alias = "cfg")]
     config: String,
 
@@ -145,6 +159,12 @@ struct CompileCmd {
     // Short slug, hide parent slug in the displayed slug, for example, /tutorials/install -> /install
     #[arg(long, default_value_t = false)]
     no_short_slug: bool,
+}
+#[derive(clap::Args)]
+struct SyntectCmd {
+    /// Project config path
+    #[arg(long, default_value_t = format!("./.typsite"), alias = "cfg")]
+    config: String,
 }
 
 #[derive(clap::Args)]

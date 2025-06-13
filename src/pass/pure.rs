@@ -24,10 +24,10 @@ use html5gum::{StringReader, Tokenizer as HtmlTokenizer};
 use std::collections::{HashMap, HashSet};
 use std::{path::Path, result::Result::Ok};
 
-use crate::compile::error::{TypError, TypResult};
 use super::tokenizer::{
     BodyTag, Event, EventTokenizer, HeadTag, Label, PeekableTokenizer, Tokenizer,
 };
+use crate::compile::error::{TypError, TypResult};
 
 mod body;
 mod embed;
@@ -155,23 +155,17 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         let body = Body::new(body_content, body_rewriters, body_numberings);
         let full_sidebar = Sidebar::new(
             full_sidebar.contents,
-            full_sidebar
-                .titles
-                .remove(&TITLE_POS)
-                .unwrap_or_default(),
-                full_sidebar_show_children,
+            full_sidebar.titles.remove(&TITLE_POS).unwrap_or_default(),
+            full_sidebar_show_children,
             full_sidebar_numberings,
-            full_sidebar_anchors
+            full_sidebar_anchors,
         );
         let embed_sidebar = Sidebar::new(
             embed_sidebar.contents,
-            embed_sidebar
-                .titles
-                .remove(&TITLE_POS)
-                .unwrap_or_default(),
-                embed_show_children,
+            embed_sidebar.titles.remove(&TITLE_POS).unwrap_or_default(),
+            embed_show_children,
             embed_sidebar_numberings,
-            embed_sidebar_anchors
+            embed_sidebar_anchors,
         );
         let anchors = data
             .anchors
@@ -273,7 +267,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         path: SlugPath,
         slug: Key,
     ) -> PurePass<'a, 'k> {
-        let metadata = MetadataBuilder::new(slug.clone(), config, registry);
+        let metadata = MetadataBuilder::new(slug.clone());
         Self {
             path,
             slug: slug.clone(),
@@ -316,10 +310,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
     fn handle_head_start_tag(&mut self, start_tag: HeadTag) -> Result<()> {
         match start_tag {
             HeadTag::Schema { schema } => {
-                let schema = self
-                    .config
-                    .schemas
-                    .get(schema.as_str())?;
+                let schema = self.config.schemas.get(schema.as_str())?;
                 self.schema = Some(schema);
                 self.skip = Some("schema".to_string());
             }
@@ -341,7 +332,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
                 let tag_name = self.config.rules.rule_name(&tag).unwrap();
                 self.used_rules.insert(tag_name);
 
-                self.push_rewriter_start(tag_name, rule, attrs);
+                self.push_rewriter_start(tag_name, rule, attrs)?;
 
                 if rule.pass.atom() {
                     self.skip = Some("rewrite".to_string());
@@ -370,7 +361,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
                     let rule = self.config.rules.get("metacontent").unwrap();
                     let tag_name = self.config.rules.rule_name("metacontent").unwrap();
                     self.used_rules.insert(tag_name);
-                    self.push_rewriter_start("metacontent", rule, attrs);
+                    self.push_rewriter_start("metacontent", rule, attrs)?;
                 }
             }
 
@@ -382,7 +373,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
                 heading_level,
             } => {
                 self.push_section_ends_if_needed(heading_level);
-                self.push_embed(slug, open,variables, sidebar, heading_level)?;
+                self.push_embed(slug, open, variables, sidebar, heading_level)?;
             }
 
             BodyTag::AnchorGoto { id } => {
@@ -413,7 +404,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
                     .get(tag.as_str())
                     .context(format!("No rewrite rule named {tag}"))?;
                 let tag_name = self.config.rules.rule_name(tag.as_str()).unwrap();
-                self.push_rewriter_end(tag_name, rule);
+                self.push_rewriter_end(tag_name, rule)?;
             }
             BodyTag::MetaContentSet { .. } if self.metadata.meta_key.is_some() => {
                 self.push_buffer();
@@ -474,7 +465,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
 
     pub fn resolve_slug(&self, slug_path: &str, tag: &str) -> Result<Key> {
         let path = resolve_path(self.root, self.path.parent().unwrap(), slug_path)?;
-        let slug = self.config.path_to_slug(path.as_path());
+        let slug = self.config.path_to_slug(path.as_path())?;
 
         self.registry.slug(slug.as_str()).context(format!(
             "Failed to resolve slug {slug_path} in {}  ({tag})",
@@ -526,7 +517,8 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         rule: &'a TagRewriteRule,
         attributes: HashMap<String, String>,
         rewriter: F,
-    ) where
+    ) -> Result<()>
+    where
         F: FnOnce(HashMap<String, String>, Option<(Pos, usize)>, usize) -> RewriterBuilder<'a>,
     {
         self.push_buffer();
@@ -536,7 +528,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         } else {
             self.body.len()
         };
-        let dependents = rule.dependents(&attributes, self);
+        let dependents = rule.dependents(&attributes, self)?;
         let rewriter = rewriter(attributes, sidebar_pos, index);
         if self.metadata.meta_key.is_some() {
             self.content_buffer.push(String::new());
@@ -551,9 +543,8 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         if let Some(path) = rule.path.as_ref() {
             self.depend_path(Source::Path(path.clone()))
         }
-        if let Some(dependents) = dependents {
-            dependents.into_iter().for_each(|it| self.depend_path(it))
-        }
+        dependents.into_iter().for_each(|it| self.depend_path(it));
+        Ok(())
     }
 
     fn push_rewriter_start(
@@ -561,7 +552,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         rule_id: &'a str,
         rule: &'a TagRewriteRule,
         attrs: Attributes,
-    ) {
+    ) -> Result<()> {
         let attrs = rule.init(attrs, self);
         let attrs = match attrs {
             Ok(attrs) => {
@@ -570,24 +561,23 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
             }
             Err(e) => {
                 self.rewriter_backtrace.push(None);
-                eprintln!("[WARN] {e}, skip");
-                return;
+                return Err(e);
             }
         };
         self.push_rewriter(rule, attrs, |attributes, sidebar_pos, index| {
             RewriterBuilder::new(rule_id, RewriterType::Start, attributes, sidebar_pos, index)
-        });
+        })
     }
 
-    fn push_rewriter_end(&mut self, rule_id: &'a str, rule: &'a TagRewriteRule) {
+    fn push_rewriter_end(&mut self, rule_id: &'a str, rule: &'a TagRewriteRule) -> Result<()> {
         let attrs = self.rewriter_backtrace.pop().unwrap();
         let attrs = match attrs {
             Some(attrs) => attrs,
-            None => return
+            None => return Ok(()),
         };
         self.push_rewriter(rule, attrs, |attributes, sidebar_pos, index| {
             RewriterBuilder::new(rule_id, RewriterType::End, attributes, sidebar_pos, index)
-        });
+        })
     }
 
     pub fn push_embed(

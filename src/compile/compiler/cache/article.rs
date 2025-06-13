@@ -1,16 +1,16 @@
-use crate::compile::compiler::ErrorArticles;
+use crate::compile::compiler::{ErrorArticles, PathBufs};
 use crate::compile::error::{TypError, TypResult};
 use crate::compile::registry::{Key, KeyRegistry};
 use crate::config::TypsiteConfig;
 use crate::ir::article::{Article, PureArticle};
 use crate::util::error::{log_err, log_err_or_ok};
-use crate::util::fs::{remove_file_unwrap, write_into_file};
+use crate::util::fs::{remove_file_ignore, write_into_file};
 use crate::walk_glob;
 use anyhow::{Context, anyhow};
 use glob::glob;
 use rayon::prelude::*;
 use std::collections::hash_map::Drain;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 pub struct ArticleCache<'a> {
@@ -29,16 +29,15 @@ impl<'a> ArticleCache<'a> {
     pub fn load(
         &mut self,
         config: &'a TypsiteConfig,
-        deleted: &HashSet<PathBuf>,
+        deleted: &PathBufs,
         registry: &mut KeyRegistry,
     ) -> ErrorArticles {
-        let deleted_json = deleted
-            .iter()
+        deleted
+            .into_par_iter()
             .map(|path| path.with_extension("json"))
-            .collect::<HashSet<PathBuf>>();
+            .for_each(|path| remove_file_ignore(&path));
 
         let pures = walk_glob!("{}/**/*.json", self.cache_article_path.display())
-            .filter(|path| !deleted_json.contains(path))
             .par_bridge()
             .map(|path| {
                 std::fs::read_to_string(&path)
@@ -50,9 +49,6 @@ impl<'a> ArticleCache<'a> {
             })
             .filter_map(log_err_or_ok)
             .collect::<Vec<PureArticle>>();
-        deleted_json.into_par_iter().for_each(|path| {
-            remove_file_unwrap(&path, "cache article");
-        });
         registry.register_paths(config, pures.iter().map(|pure| pure.path.as_path()));
 
         let registry: &mut KeyRegistry = registry;
@@ -85,6 +81,7 @@ impl<'a> ArticleCache<'a> {
                 let slug = err.slug.clone();
                 let path = registry.path(&slug).unwrap().to_path_buf();
                 registry.remove_slug(&slug);
+                cache.remove(&slug);
                 error_articles.insert(slug, (path, err));
             });
             let failed = cache
@@ -92,9 +89,9 @@ impl<'a> ArticleCache<'a> {
                 .filter_map(|(slug, article)| {
                     let errors: Vec<_> = error_articles
                         .keys()
-                        .filter_map(|slug| {
-                            if article.get_depending_articles().contains(slug) {
-                                Some(anyhow!("Article {slug} not found"))
+                        .filter_map(|error_slug| {
+                            if article.get_depending_articles().contains(error_slug) {
+                                Some(anyhow!("Article {error_slug} not found"))
                             } else {
                                 None
                             }

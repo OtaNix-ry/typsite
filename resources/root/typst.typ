@@ -7,6 +7,7 @@
 #title[Typst 简介]
 #date[2025-04-27 18:39]
 #author[Glomzzz]
+#parent("index.typ")
 
 Typst 是一种现代化的排版系统，类似于 LaTeX，但设计更为简洁、易学，它主要用于创建学术论文、书籍、报告等需要精美排版的文档。
 

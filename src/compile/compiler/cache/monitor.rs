@@ -1,5 +1,8 @@
+use crate::compile::compiler::PathBufs;
 use crate::util::error::{log_err, log_err_or_ok};
-use crate::util::fs::{remove_file, write_into_file};
+use crate::util::fs::{
+    copy_file, remove_file, remove_file_ignore, remove_file_log_err, write_into_file,
+};
 use crate::util::path::relative_path;
 use crate::walk_glob;
 use anyhow::{Context, Result};
@@ -15,7 +18,9 @@ use std::{fs::File, path::Path};
 pub struct Monitor<'a> {
     config_path: &'a Path,
     typst_path: &'a Path,
+    html_cache_path: &'a Path,
     hash_path: PathBuf,
+    retry_path: PathBuf,
     typst_hash_cache: HashMap<PathBuf, Hash>,
     non_typst_hash_cache: HashMap<PathBuf, Hash>,
     html_hash_cache: HashMap<PathBuf, Hash>,
@@ -23,98 +28,126 @@ pub struct Monitor<'a> {
 }
 
 impl<'a> Monitor<'a> {
-    fn load_hashes(hash_path: &Path, hash_cache_path: &Path, ext: &str) -> HashMap<PathBuf, Hash> {
-        walk_glob!("{}/**/*{ext}.hash", hash_cache_path.display())
-            .par_bridge()
-            .map(|path| {
-                std::fs::read_to_string(&path)
-                    .context("Failed to read hash file")
-                    .and_then(|hash| {
-                        let hash = Hash::from_str(&hash).context("Failed to parse hash")?;
-                        let mut path =
-                            relative_path(hash_path, &path).context("Failed to convert path")?;
-                        path.set_extension("");
-                        Ok((path, hash))
-                    })
-            })
-            .filter_map(log_err_or_ok)
-            .collect()
-    }
-
     pub fn load(
         cache_path: &Path,
-        typst_path: &'a Path,
-        html_cache_path: &Path,
         config_path: &'a Path,
+        typst_path: &'a Path,
+        html_cache_path: &'a Path,
     ) -> Monitor<'a> {
         let hash_path = cache_path.join("hash");
-        let typst_hash = Self::load_hashes(&hash_path, &hash_path.join(typst_path), ".typ");
-        let non_typst_hash = Self::load_hashes(&hash_path, &hash_path.join(typst_path), "[!.typ]");
-        let html_hash = Self::load_hashes(&hash_path, &hash_path.join(html_cache_path), "");
-        let config_hash = Self::load_hashes(&hash_path, &hash_path.join(config_path), "");
+        let retry_path = hash_path.join("retry");
+        let typst_hash_cache = load_hashes(&hash_path, &hash_path.join(typst_path), ".typ");
+        let non_typst_hash_cache = load_hashes(&hash_path, &hash_path.join(typst_path), "[!.typ]");
+        let html_hash_cache = load_hashes(&hash_path, &hash_path.join(html_cache_path), "");
+        let config_hash_cache = load_hashes(&hash_path, &hash_path.join(config_path), "");
         Self {
             config_path,
             typst_path,
             hash_path,
-            typst_hash_cache: typst_hash,
-            non_typst_hash_cache: non_typst_hash,
-            html_hash_cache: html_hash,
-            config_hash_cache: config_hash,
+            html_cache_path,
+            retry_path,
+            typst_hash_cache,
+            non_typst_hash_cache,
+            html_hash_cache,
+            config_hash_cache,
         }
     }
-
     pub fn refresh_html(
         &mut self,
-        html_cache_path: &Path,
+        deleted_typst_paths: &PathBufs,
         overall_compile_needed: bool,
-    ) -> Result<HashSet<PathBuf>> {
-        let pattern = format!("{}/**/*.html", html_cache_path.display());
-        let new_results: HashMap<PathBuf, Hash> = hash_pattern(&pattern).into_iter().collect();
-        let all_htmls: HashSet<PathBuf> = new_results.keys().cloned().collect();
-        let (updated, _) = refresh(&self.hash_path, &mut self.html_hash_cache, new_results)?;
+    ) -> Result<Vec<PathBuf>> {
+        deleted_typst_paths
+            .par_iter()
+            .map(|it| self.html_cache_path.join(it).with_extension("html"))
+            .for_each(|it| remove_file_log_err(it, "cache html"));
+        let pattern = format!("{}/**/*.html", self.html_cache_path.display());
+        let hash_new: HashMap<PathBuf, Hash> = hash_pattern(&pattern).into_iter().collect();
+        let all_htmls: Vec<PathBuf> = hash_new.keys().cloned().collect();
+        let (updated, _) = refresh(
+            &self.hash_path,
+            Some(&self.retry_path),
+            &mut self.html_hash_cache,
+            hash_new,
+        )?;
         Ok(if overall_compile_needed {
             all_htmls
         } else {
-            updated
+            updated.into_iter().collect()
         })
     }
 
-    pub fn refresh_config(&mut self) -> Result<(HashSet<PathBuf>, HashSet<PathBuf>)> {
+    pub fn refresh_config(&mut self) -> Result<(PathBufs, PathBufs)> {
         let pattern = format!("{}/**/*", self.config_path.display());
         let hash_new = hash_pattern(&pattern).into_iter().collect();
-        refresh(&self.hash_path, &mut self.config_hash_cache, hash_new)
+        refresh(&self.hash_path, None, &mut self.config_hash_cache, hash_new)
     }
 
-    pub fn refresh_typst(
-        &mut self,
-    ) -> Result<(HashSet<PathBuf>, HashSet<PathBuf>, HashSet<PathBuf>)> {
+    pub fn refresh_typst(&mut self) -> Result<(PathBufs, PathBufs, PathBufs)> {
         let pattern = format!("{}/**/*.typ", self.typst_path.display());
         let hash_new: HashMap<PathBuf, Hash> = hash_pattern(&pattern).into_iter().collect();
-        let all_typsts: HashSet<PathBuf> = hash_new.keys().cloned().collect();
-        refresh(&self.hash_path, &mut self.typst_hash_cache, hash_new)
+        let all_typsts: PathBufs = hash_new.keys().cloned().collect();
+        refresh(&self.hash_path, None, &mut self.typst_hash_cache, hash_new)
             .map(|(updated, deleted)| (all_typsts, updated, deleted))
     }
 
-    pub fn refresh_non_typst(&mut self) -> Result<(HashSet<PathBuf>, HashSet<PathBuf>)> {
+    pub fn refresh_non_typst(&mut self) -> Result<(PathBufs, PathBufs)> {
         let pattern = format!("{}/**/*[!.typ]", self.typst_path.display());
         let hash_new = hash_pattern(&pattern).into_iter().collect();
-        refresh(&self.hash_path, &mut self.non_typst_hash_cache, hash_new)
+        refresh(
+            &self.hash_path,
+            None,
+            &mut self.non_typst_hash_cache,
+            hash_new,
+        )
     }
-    pub fn delete_cache(&self, path: &Path, html_cache_path: &Path) {
-        let cache_html_path = if !path.starts_with(html_cache_path) {
-            html_cache_path.join(path)
-        } else {
-            path.to_path_buf()
-        };
-        // cache_html_path.set_extension("html");
-        // remove_file(&cache_html_path, "cache html").unwrap_or(());
-        // let mut typ_hash_path = self.hash_path.join(relative_path(html_cache_path, &cache_html_path).unwrap());
-        // typ_hash_path.set_extension("typ.hash");
-        // remove_file(&typ_hash_path, "typ hash").unwrap_or(());
-        let mut html_hash_path = self.hash_path.join(cache_html_path);
-        html_hash_path.set_extension("html.hash");
-        remove_file(&html_hash_path, "html hash").unwrap_or(());
+
+    // Remember those (failed) html files, an attempt will be made to load them next time
+    pub fn retry_next_time(&self, cache_html_path: &Path) {
+        let html_hash = cache_html_path.with_extension("html.hash");
+        let html_hash_path = self.hash_path.join(&html_hash);
+        let retry_path = self.retry_path.join(&html_hash);
+        copy_file(html_hash_path, retry_path).unwrap_or_else(|err| eprintln!("{err}"));
     }
+
+    pub fn remove_retry_hash(&self, path: &Path) {
+        let path = self
+            .retry_path
+            .join(self.html_cache_path.join(path))
+            .with_extension("html.hash");
+        remove_file_ignore(path);
+    }
+
+    pub fn retry(&self) -> PathBufs {
+        walk_glob!("{}/**/*.html.hash", self.retry_path.display())
+            .par_bridge()
+            .map(|path| -> Result<PathBuf> {
+                let path = relative_path(&self.retry_path, &path)
+                    .context("Failed to convert path")?
+                    .with_extension("");
+                Ok(path)
+            })
+            .filter_map(log_err_or_ok)
+            .collect()
+    }
+}
+
+fn load_hashes(hash_path: &Path, hash_cache_path: &Path, ext: &str) -> HashMap<PathBuf, Hash> {
+    walk_glob!("{}/**/*{ext}.hash", hash_cache_path.display())
+        .par_bridge()
+        .map(|path| {
+            std::fs::read_to_string(&path)
+                .context("Failed to read hash file")
+                .and_then(|hash| {
+                    let hash = Hash::from_str(&hash).context("Failed to parse hash")?;
+                    let mut path =
+                        relative_path(hash_path, &path).context("Failed to convert path")?;
+                    path.set_extension("");
+                    Ok((path, hash))
+                })
+        })
+        .filter_map(log_err_or_ok)
+        .collect()
 }
 
 fn hash_pattern(pattern: &str) -> Vec<(PathBuf, Hash)> {
@@ -137,11 +170,12 @@ fn compute_hash(path: &Path) -> Option<Hash> {
 }
 fn refresh(
     hash_path: &Path,
+    retry_path: Option<&Path>,
     hash_cache: &mut HashMap<PathBuf, Hash>,
     hash_new: HashMap<PathBuf, Hash>,
-) -> Result<(HashSet<PathBuf>, HashSet<PathBuf>)> {
+) -> Result<(PathBufs, PathBufs)> {
     // Deleted Paths
-    let mut deleted_paths: HashSet<PathBuf> = HashSet::new();
+    let mut deleted_paths: PathBufs = HashSet::new();
     {
         let mut temp_cache = HashMap::new();
         hash_cache.drain().for_each(|(path, hash)| {
@@ -162,17 +196,18 @@ fn refresh(
         })
         .collect();
 
-    write_cache(hash_path, &updated, &deleted_paths)?;
+    write_cache(hash_path, retry_path, &updated, &deleted_paths)?;
 
-    let updated_paths: HashSet<PathBuf> = updated.into_iter().map(|(path, _)| path).collect();
+    let updated_paths: PathBufs = updated.into_iter().map(|(path, _)| path).collect();
 
     Ok((updated_paths, deleted_paths))
 }
 
 fn write_cache(
     hash_path: &Path,
+    retry_path: Option<&Path>,
     updated: &Vec<(PathBuf, Hash)>,
-    deleted: &HashSet<PathBuf>,
+    deleted: &PathBufs,
 ) -> Result<()> {
     updated
         .par_iter()
@@ -181,6 +216,10 @@ fn write_cache(
             let mut path = path.clone();
             path.add_extension("hash");
             let hash_path = hash_path.join(&path);
+            if let Some(retry_path) = retry_path {
+                let retry_hash_path = retry_path.join(&path);
+                remove_file_ignore(retry_hash_path);
+            }
             write_into_file(hash_path, &content, "hash")
         })
         .for_each(log_err);
@@ -190,6 +229,10 @@ fn write_cache(
             let mut path = path.clone();
             path.add_extension("hash");
             let hash_path = hash_path.join(&path);
+            if let Some(retry_path) = retry_path {
+                let retry_hash_path = retry_path.join(&path);
+                remove_file_ignore(retry_hash_path);
+            }
             remove_file(hash_path, "hash")
         })
         .for_each(log_err);

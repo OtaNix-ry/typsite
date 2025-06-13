@@ -8,34 +8,30 @@ use crate::ir::article::dep::{Indexes, UpdatedIndex};
 use crate::ir::article::sidebar::SidebarType;
 use crate::ir::embed::SectionType;
 use crate::pass::pass_schema;
-use crate::util::html::OutputHtml;
 use anyhow::*;
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, OnceLock};
-use std::{
-    path::{Path, PathBuf},
-    result::Result::Ok,
-};
+use std::result::Result::Ok;
 
-use super::{ErrorArticles, analyse_slugs_to_update_and_load};
+use super::{analyse_slugs_to_update_and_load, ErrorArticles, UpdatedPages, PathBufs};
 
 pub type PageCache = HashMap<Key, (Vec<String>, Vec<String>, Vec<String>)>;
-pub type Output<'a> = Vec<(Arc<Path>, OutputHtml<'a>)>;
+
 
 pub struct PageData<'a> {
     pub cache: PageCache,
-    pub output: Output<'a>,
-    pub failed: ErrorArticles,
+    pub updated_pages: UpdatedPages<'a>,
+    pub error_pages: ErrorArticles,
 }
 
 pub fn compose_pages<'c, 'b: 'c, 'a: 'b>(
     config: &'a TypsiteConfig<'a>,
     changed_article_slugs: HashSet<Key>,
-    changed_typst_paths: HashSet<PathBuf>,
-    changed_config_paths: &HashSet<PathBuf>,
-    updated_articles: &'c HashMap<Key, Article<'a>>,
-    rev_dependency: RevDeps,
+    changed_typst_paths: PathBufs,
+    changed_config_paths: &PathBufs,
+    loaded_articles: &'c HashMap<Key, Article<'a>>,
+    rev_dep: RevDeps,
     overall_compile_needed: bool,
 ) -> Result<PageData<'a>> {
     let mut updated_typst_paths = changed_typst_paths.clone();
@@ -47,18 +43,18 @@ pub fn compose_pages<'c, 'b: 'c, 'a: 'b>(
         &changed_article_slugs,
         &mut updated_typst_paths,
         changed_config_paths,
-        updated_articles,
-        &rev_dependency,
+        loaded_articles,
+        &rev_dep,
     );
 
     let (mut global_meta_indexes, global_body_rewrite_indexes, global_body_embed_indexes) =
         analyse_global_indexes(
-            updated_articles,
+            loaded_articles,
             &slugs_to_update,
             changed_typst_paths,
             changed_config_paths,
             &updated_typst_paths,
-            rev_dependency,
+            rev_dep,
             overall_compile_needed,
         );
 
@@ -69,7 +65,7 @@ pub fn compose_pages<'c, 'b: 'c, 'a: 'b>(
 
     let global_data = GlobalData::new(
         config,
-        updated_articles,
+        loaded_articles,
         pendings,
         global_body_rewrite_indexes,
         global_body_embed_indexes,
@@ -95,7 +91,7 @@ pub fn compose_pages<'c, 'b: 'c, 'a: 'b>(
             }
             meta_contents
         })
-        .for_each(|meta_contents| meta_contents.init_parent_replacement(&global_data));
+        .for_each(|meta_contents| meta_contents.init_parent(&global_data));
 
     let empty_pos = vec![];
     let final_cache = slugs_to_update
@@ -162,8 +158,8 @@ pub fn compose_pages<'c, 'b: 'c, 'a: 'b>(
         .par_bridge()
         .map(|(slug, lock)| (slug, lock.into_inner().unwrap()))
         .collect();
-    let output: Output = output.into_iter().flatten().collect();
-    let failed = failed
+    let updated_pages: UpdatedPages = output.into_iter().flatten().collect();
+    let error_articles = failed
         .into_iter()
         .filter_map(|it| it.err())
         .map(|err| {
@@ -173,17 +169,17 @@ pub fn compose_pages<'c, 'b: 'c, 'a: 'b>(
         .collect();
     Ok(PageData {
         cache,
-        output,
-        failed,
+        updated_pages,
+        error_pages: error_articles,
     })
 }
 
 fn analyse_global_indexes<'a, 'b, 'c>(
     updated_articles: &'c HashMap<Key, Article<'a>>,
     slugs_to_update: &HashSet<Key>,
-    changed_typst_paths: HashSet<PathBuf>,
-    changed_config_paths: &HashSet<PathBuf>,
-    updated_typst_paths: &HashSet<PathBuf>,
+    changed_typst_paths: PathBufs,
+    changed_config_paths: &PathBufs,
+    updated_typst_paths: &PathBufs,
     mut rev_dependency: RevDeps,
     overall_compile_needed: bool,
 ) -> (

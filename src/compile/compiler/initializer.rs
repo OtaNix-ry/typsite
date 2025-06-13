@@ -1,38 +1,39 @@
+use super::{PathBufs, cache::monitor::Monitor};
+use crate::{
+    compile::{compile_options, init_proj_options, options::ProjOptions, proj_options},
+    config::TypsiteConfig,
+    util::path::file_ext,
+};
 use anyhow::*;
 use std::{
     collections::HashSet,
-    path::{Path, PathBuf},
+    path::Path,
 };
-use super::cache::monitor::Monitor;
-use crate::{
-    compile::{init_proj_options, options::ProjOptions, proj_options
-    },
-    config::TypsiteConfig,
-};
-
-
-pub type Paths = HashSet<PathBuf>;
 
 pub struct Input<'a> {
     pub monitor: Monitor<'a>,
     pub config: TypsiteConfig<'a>,
-    pub changed_typst_paths: Paths,
-    pub deleted_typst_paths: Paths,
-    pub changed_config_paths: Paths,
-    pub deleted_config_paths: Paths,
-    pub changed_non_typst: Paths,
-    pub deleted_non_typst: Paths,
+    pub changed_typst_paths: PathBufs,
+    pub deleted_typst_paths: PathBufs,
+    pub changed_config_paths: PathBufs,
+    pub deleted_config_paths: PathBufs,
+    pub changed_non_typst: PathBufs,
+    pub deleted_non_typst: PathBufs,
+    pub changed_assets: PathBufs,
+    pub deleted_assets: PathBufs,
+    pub retry_html_paths: PathBufs,
     pub overall_compile_needed: bool,
 }
 
 pub fn initialize<'a>(
     cache_path: &Path,
     typst_path: &'a Path,
-    html_cache_path: &Path,
+    html_cache_path: &'a Path,
     config_path: &'a Path,
+    assets_path: &'a Path,
 ) -> Result<Input<'a>> {
     // Load hash cache
-    let mut monitor = Monitor::load(cache_path, typst_path, html_cache_path, config_path);
+    let mut monitor = Monitor::load(cache_path, config_path, typst_path, html_cache_path);
 
     // Get updated and deleted typst files
     let (all_typst_paths, mut changed_typst_paths, mut deleted_typst_paths) =
@@ -44,7 +45,10 @@ pub fn initialize<'a>(
     // Get updated and deleted non-typst files
     let (changed_non_typst, deleted_non_typst) = monitor.refresh_non_typst()?;
 
-    let config = TypsiteConfig::load(config_path, typst_path).context(format!(
+    // Get retry paths
+    let retry_paths = monitor.retry();
+
+    let config = TypsiteConfig::load(config_path, typst_path, html_cache_path).context(format!(
         "Loading '{config_path:?}' failed, try to init Typsite first by: typsite init"
     ))?;
 
@@ -91,11 +95,7 @@ pub fn initialize<'a>(
     }
 
     // Remove lib paths from changed and deleted typst paths
-    fn retain_lib_paths(
-        typst_path: &Path,
-        paths: &mut HashSet<PathBuf>,
-        lib_paths: &HashSet<String>,
-    ) {
+    fn retain_lib_paths(typst_path: &Path, paths: &mut PathBufs, lib_paths: &HashSet<String>) {
         paths.retain(|path| {
             let path = path.strip_prefix(typst_path).unwrap();
             !lib_paths.contains(path.to_string_lossy().as_ref())
@@ -103,6 +103,14 @@ pub fn initialize<'a>(
     }
     retain_lib_paths(typst_path, &mut changed_typst_paths, lib_paths);
     retain_lib_paths(typst_path, &mut deleted_typst_paths, lib_paths);
+    let changed_assets = changed_config_paths
+        .iter()
+        .filter(|path| path.starts_with(assets_path) && file_ext(path) != Some("html".to_string())).cloned()
+        .collect();
+    let deleted_assets = deleted_config_paths
+        .iter()
+        .filter(|path| path.starts_with(assets_path) && file_ext(path) != Some("html".to_string())).cloned()
+        .collect();
     let input = Input {
         monitor,
         config,
@@ -112,6 +120,9 @@ pub fn initialize<'a>(
         deleted_config_paths,
         changed_non_typst,
         deleted_non_typst,
+        changed_assets,
+        deleted_assets,
+        retry_html_paths: retry_paths,
         overall_compile_needed,
     };
     Ok(input)
@@ -120,14 +131,15 @@ pub fn initialize<'a>(
 impl<'a> Input<'a> {
     pub fn unchanged(&self) -> bool {
         self.changed_typst_paths.is_empty()
-            && self.changed_config_paths.is_empty()
-            && self.changed_non_typst.is_empty()
-            && self.deleted_config_paths.is_empty()
             && self.deleted_typst_paths.is_empty()
+            && self.changed_config_paths.is_empty()
+            && self.deleted_config_paths.is_empty()
+            && self.changed_non_typst.is_empty()
             && self.deleted_non_typst.is_empty()
+            // In watch mode, ignore `retry_html_paths` when determining if a file is `unchanged`
+            && ( compile_options().unwrap().watch || self.retry_html_paths.is_empty() )
     }
 }
-
 
 fn init_options_toml(config_path: &Path) -> Result<()> {
     let new_options = ProjOptions::load(config_path)?;
