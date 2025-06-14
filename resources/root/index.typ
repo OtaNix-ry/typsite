@@ -291,7 +291,8 @@ Typsite 兼容绝大部分 typst 的原生表达:
 用法: typsite compile [OPTIONS]
 
 选项:
-      --port <PORT>      服务端口 [默认: 0]
+      --host <HOST>      服务主机 [默认: localhost]
+      --port <PORT>      服务端口, 如果非0则进入watch-mode [默认: 0]
       --config <CONFIG>  项目配置路径 [默认: ./.typsite]
       --cache <CACHE>    缓存目录 [默认: ./.cache]
   -i, --input <INPUT>    Typst 根目录，存放 typst 文件的位置 [默认: ./root] [别名: --i]

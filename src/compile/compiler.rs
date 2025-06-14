@@ -70,8 +70,8 @@ impl Compiler {
             output_path,
         })
     }
-    pub async fn watch(self, port: u16) -> Result<()> {
-        watch(self, port).await
+    pub async fn watch(self,host:String, port: u16) -> Result<()> {
+        watch(self,host, port).await
     }
     pub fn compile(&self) -> Result<bool> {
         //1. Initialize input & config

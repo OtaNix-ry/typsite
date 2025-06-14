@@ -106,6 +106,7 @@ Commands:
   init     Initialize a new Typsite project in the specified directory
   compile  Compile or watch a project; specify input/output [alias: c]
   clean    Clear cache and output directories
+  syntect  Check the list of supported syntax and code highlighting
   help     Print this message or help info for a subcommand
 
 Options:
@@ -133,8 +134,9 @@ Compile or watch the project, specifying input/output directories
 Usage: typsite compile [OPTIONS]
 
 Options:
-      --port <PORT>      Server port [default: 0]
-      --config <CONFIG>  Config path [default: ./.typsite]
+      --config <CONFIG>  
+      --host <HOST>      Serve host [default: localhost]
+      --port <PORT>      Serve port, must be specified to watch mode [default: 0]
       --cache <CACHE>    Cache directory [default: ./.cache]
   -i, --input <INPUT>    Typst root directory [default: ./root] [alias: --i]
   -o, --output <OUTPUT>  Output directory [default: ./publish] [alias: --o]

@@ -20,10 +20,10 @@ pub const WATCH_AUTO_RELOAD_SCRIPT: &str = r"
 ";
 
 //noinspection ALL
-pub async fn watch(compiler: Compiler, port: u16) -> Result<()> {
+pub async fn watch(compiler: Compiler,host:String, port: u16) -> Result<()> {
     let (reload_sender, reload_receiver) = mpsc::channel::<()>(1);
 
-    let url = format!("localhost:{port}");
+    let url = format!("{host}:{port}");
     println!("  - Serve url: http://{url}");
     let server = Server::http(url).unwrap();
     let publish_dir = compiler.output_path.clone();
