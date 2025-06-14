@@ -80,6 +80,7 @@ impl Executor {
     }
 
     async fn execute_compile(compile_cmd: CompileCmd) -> Result<()> {
+        let host = compile_cmd.host.clone();
         let port = compile_cmd.port;
         let compiler = Self::build_compiler(compile_cmd)?;
         match port {
@@ -92,7 +93,7 @@ impl Executor {
                 println!("Start watching...");
                 Self::clean(&compiler.cache_path)?;
                 Self::clean(&compiler.output_path)?;
-                compiler.watch(port).await?;
+                compiler.watch(host,port).await?;
             }
         }
         Ok(())
@@ -133,7 +134,10 @@ struct InitCmd {
 
 #[derive(clap::Args)]
 struct CompileCmd {
-    /// Serve port
+    /// Serve host
+    #[arg(long, default_value_t = format!("localhost"), alias = "h")]
+    host: String,
+    /// Serve port, must be specified to watch mode
     #[arg(long, default_value_t = 0)]
     port: u16,
     /// Project config
