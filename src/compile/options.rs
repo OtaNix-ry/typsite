@@ -44,10 +44,7 @@ pub struct CodeFallbackStyle {
 pub mod metadata {
     use crate::{
         compile::{proj_options, registry::Key},
-        ir::article::{
-            data::GlobalData,
-            sidebar::{HeadingNumberingStyle, SidebarType},
-        },
+        ir::article::sidebar::{HeadingNumberingStyle, SidebarType},
     };
     use serde::{Deserialize, Serialize};
     use std::{
@@ -82,11 +79,10 @@ pub mod metadata {
         default_parent_slug: OnceLock<Option<Key>>,
     }
     impl Graph {
-        pub fn default_parent_slug<'a, 'b, 'c>(&self, global_data: &'c GlobalData<'a,'b,'c>) -> Option<Key>
-        where
-            'a: 'b,
-            'b: 'c,
-        {
+        pub fn default_parent_slug(
+            &self,
+            verify_slug: impl FnOnce(&String) -> Option<Key>,
+        ) -> Option<Key> {
             self.default_parent_slug
                 .get_or_init(|| {
                     proj_options().ok().and_then(|it| {
@@ -94,10 +90,7 @@ pub mod metadata {
                             .graph
                             .parent
                             .as_ref()
-                            .map(|default| global_data.config.format_slug(default))
-                            .and_then(|default| {
-                                global_data.article(&default).map(|it| it.slug.clone())
-                            })
+                            .and_then(verify_slug)
                     })
                 })
                 .clone()

@@ -58,9 +58,9 @@ impl KeyRegistry {
         let slug = config.path_to_slug(path)?;
         let slug: Key = self.register_slug(slug);
         let path = if path.starts_with(config.html_path) {
-            path.strip_prefix(config.html_path).unwrap()
+            path.strip_prefix(config.html_path).unwrap().with_extension("typ")
         } else {
-            path
+            path.to_path_buf()
         };
         let arc: Arc<Path> = Arc::from(path);
         let slug_with_path = (

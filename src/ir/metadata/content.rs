@@ -145,13 +145,20 @@ impl<'b, 'a: 'b> MetaContents<'a> {
     }
 
     pub fn init_parent<'c>(&self, global_data: &'c GlobalData<'a, 'b, 'c>) {
-        let default_parent_slug= proj_options().ok().and_then(|options| options.default_metadata.graph.default_parent_slug(global_data));
+        let default_parent_slug = proj_options().ok().and_then(|options| {
+            options
+                .default_metadata
+                .graph
+                .default_parent_slug(|slug| global_data.article(slug).map(|it| it.slug.clone()))
+        });
 
         let self_metadata = global_data.metadata(self.slug.as_str()).unwrap();
         self.parent.get_or_init(|| {
-            
             self_metadata.node.parent.is_some()
-                || default_parent_slug.as_ref().map(|default| default.as_str() != self.slug.as_str()).unwrap_or(false)
+                || default_parent_slug
+                    .as_ref()
+                    .map(|default| default.as_str() != self.slug.as_str())
+                    .unwrap_or(false)
         });
         self.parent_replacement.get_or_init(|| {
             self_metadata

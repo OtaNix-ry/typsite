@@ -1,6 +1,6 @@
 use super::cache::dep::RevDeps;
-use crate::compile::compiler::PathBufs;
 use crate::compile::registry::Key;
+use crate::compile::compiler::PathBufs;
 use crate::ir::article::Article;
 use std::collections::{HashMap, HashSet};
 

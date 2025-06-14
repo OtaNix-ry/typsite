@@ -78,13 +78,13 @@ impl<'a> RevDeps {
         &mut self,
         config: &'a TypsiteConfig,
         registry: &KeyRegistry,
-        articles: &HashMap<Key, Article<'a>>,
+        loaded_articles: &HashMap<Key, Article<'a>>,
     ) {
         type Slug = Key;
         type Dependency = HashSet<Arc<Path>>;
         type DependencyIndex = HashMap<Arc<Path>, HashSet<UpdatedIndex>>;
 
-        let dependents: Vec<(Slug, Dependency, DependencyIndex)> = articles
+        let dependents: Vec<(Slug, Dependency, DependencyIndex)> = loaded_articles
             .iter()
             .map(|(slug, article)| {
                 (
