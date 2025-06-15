@@ -15,6 +15,7 @@ use std::sync::{Arc, OnceLock};
 pub const TITLE_KEY: &str = "title";
 pub const TITLE_REPLACEMENT: &str = "{title}";
 pub const PAGE_TITLE_REPLACEMENT: &str = "{page-title}";
+pub const PAGE_TITLE_REPLACEMENT_: &str = "{page_title}";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MetaContents<'a> {
@@ -117,9 +118,18 @@ impl<'b, 'a: 'b> MetaContents<'a> {
                 .for_each(|(k, v)| {
                     map.entry(format!("{{{k}}}")).or_insert(v.to_string());
                 });
+
             if !map.contains_key(PAGE_TITLE_REPLACEMENT) {
                 map.insert(
                     PAGE_TITLE_REPLACEMENT.to_string(),
+                    map.get(TITLE_REPLACEMENT)
+                        .map(|it| it.to_string())
+                        .unwrap_or("Untitled".to_string()),
+                );
+            }
+            if !map.contains_key(PAGE_TITLE_REPLACEMENT_) {
+                map.insert(
+                    PAGE_TITLE_REPLACEMENT_.to_string(),
                     map.get(TITLE_REPLACEMENT)
                         .map(|it| it.to_string())
                         .unwrap_or("Untitled".to_string()),
