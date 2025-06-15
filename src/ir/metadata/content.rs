@@ -15,6 +15,13 @@ use std::sync::{Arc, OnceLock};
 pub const TITLE_KEY: &str = "title";
 pub const TITLE_REPLACEMENT: &str = "{title}";
 pub const PAGE_TITLE_REPLACEMENT: &str = "{page-title}";
+pub const PAGE_TITLE_REPLACEMENT_: &str = "{page_title}";
+pub const SLUG_REPLACEMENT: &str = "{slug}";
+pub const SLUG_ANCHOR_REPLACEMENT: &str = "{slug@anchor}";
+pub const SLUG_DIPLAY_REPLACEMENT: &str = "{slug-display}";
+pub const SLUG_DIPLAY_REPLACEMENT_: &str = "{slug_display}";
+pub const HAS_PARENT_REPLACEMENT: &str = "{has-parent}";
+pub const HAS_PARENT_REPLACEMENT_: &str = "{has_parent}";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MetaContents<'a> {
@@ -90,8 +97,8 @@ impl<'b, 'a: 'b> MetaContents<'a> {
                 self.slug.as_str()
             };
 
-            map.insert("{slug-display}".to_string(), slug_display.to_string());
-            map.insert("{slug_display}".to_string(), slug_display.to_string());
+            map.insert(SLUG_DIPLAY_REPLACEMENT.to_string(), slug_display.to_string());
+            map.insert(SLUG_DIPLAY_REPLACEMENT_.to_string(), slug_display.to_string());
 
             let slug = if !compile_options.pretty_url {
                 format!("{}.html", self.slug)
@@ -99,13 +106,13 @@ impl<'b, 'a: 'b> MetaContents<'a> {
                 self.slug.to_string()
             };
 
-            map.insert("{slug}".to_string(), slug.to_string());
+            map.insert(SLUG_REPLACEMENT.to_string(), slug.to_string());
 
-            map.insert("{slug@anchor}".to_string(), slug[1..].to_string());
+            map.insert(SLUG_ANCHOR_REPLACEMENT.to_string(), slug[1..].to_string());
 
             let parent = self.parent.get().cloned().unwrap_or(false);
-            map.insert("{has-parent}".to_string(), parent.to_string());
-            map.insert("{has_parent}".to_string(), parent.to_string());
+            map.insert(HAS_PARENT_REPLACEMENT.to_string(), parent.to_string());
+            map.insert(HAS_PARENT_REPLACEMENT_.to_string(), parent.to_string());
 
             // Add default meta contents
             proj_options()
@@ -117,9 +124,18 @@ impl<'b, 'a: 'b> MetaContents<'a> {
                 .for_each(|(k, v)| {
                     map.entry(format!("{{{k}}}")).or_insert(v.to_string());
                 });
+
             if !map.contains_key(PAGE_TITLE_REPLACEMENT) {
                 map.insert(
                     PAGE_TITLE_REPLACEMENT.to_string(),
+                    map.get(TITLE_REPLACEMENT)
+                        .map(|it| it.to_string())
+                        .unwrap_or("Untitled".to_string()),
+                );
+            }
+            if !map.contains_key(PAGE_TITLE_REPLACEMENT_) {
+                map.insert(
+                    PAGE_TITLE_REPLACEMENT_.to_string(),
                     map.get(TITLE_REPLACEMENT)
                         .map(|it| it.to_string())
                         .unwrap_or("Untitled".to_string()),
