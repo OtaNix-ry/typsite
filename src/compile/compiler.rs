@@ -73,7 +73,8 @@ impl Compiler {
     pub async fn watch(self, host: String, port: u16) -> Result<()> {
         watch(self, host, port).await
     }
-    pub fn compile(&self) -> Result<bool> {
+    // return (updated, no error)
+    pub fn compile(&self) -> Result<(bool,bool)> {
         //1. Initialize input & config
         let input = initialize(
             &self.cache_path,
@@ -84,7 +85,7 @@ impl Compiler {
         )?;
         // If all files are not changed, return
         if input.unchanged() {
-            return Ok(false);
+            return Ok((false,true));
         } else if !input.overall_compile_needed {
             println!("Files changed, compiling...");
         }
@@ -197,6 +198,8 @@ impl Compiler {
         error_articles.extend(error_passing_articles);
         error_articles.extend(error_pages);
 
+        let no_error = error_articles.is_empty();
+
         let output = Output {
             monitor,
             assets_path: &self.assets_path,
@@ -215,7 +218,7 @@ impl Compiler {
 
         sync_files_to_output(output);
 
-        Ok(updated)
+        Ok((updated,no_error))
     }
 }
 

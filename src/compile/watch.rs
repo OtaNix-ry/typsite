@@ -51,7 +51,7 @@ async fn compile_task(compiler: Compiler, reload_sender: Sender<()>) {
     loop {
         tokio::time::sleep(Duration::from_millis(500)).await;
         let result = compiler.compile();
-        if let Ok(true) = result {
+        if let Ok((true,_)) = result {
             let _ = reload_sender.try_send(());
         } else {
             log_err(result);
