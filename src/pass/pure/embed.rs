@@ -1,5 +1,5 @@
 use crate::compile::registry::Key;
-use crate::ir::article::sidebar::{SidebarIndex, SidebarPos};
+use crate::ir::article::sidebar::{SidebarIndexes, SidebarPos};
 use crate::ir::embed::{Embed, EmbedVariables, SectionType};
 
 pub struct EmbedBuilder {
@@ -35,8 +35,8 @@ impl EmbedBuilder {
 
     pub fn build<F, E>(self, full_sidebar_mapping: &mut F, embed_sidebar_mapping: &mut E) -> Embed
     where
-        F: FnMut(SidebarPos) -> SidebarIndex,
-        E: FnMut(SidebarPos) -> SidebarIndex,
+        F: FnMut(SidebarPos) -> SidebarIndexes,
+        E: FnMut(SidebarPos) -> SidebarIndexes,
     {
         let full_index = full_sidebar_mapping(self.full_sidebar_pos.clone());
         let embed_index = embed_sidebar_mapping(self.embed_sidebar_pos.clone());

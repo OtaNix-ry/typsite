@@ -222,21 +222,21 @@ impl<'c, 'b: 'c, 'a: 'b> RewritePass<'a, 'b, 'c> {
             id: rule_id,
             rewriter_type,
             attributes,
-            sidebar_index,
+            sidebar_indexes,
             body_index,
         } = rewriter;
-        let (str, sidebar_index, index) = {
+        let (str, sidebar_indexes, index) = {
             let result = match rewriter_type {
                 RewriterType::Start => self.visit_rewriter_start(rule_id, attributes),
                 RewriterType::End => self.visit_rewriter_end(rule_id, attributes),
             };
-            (result, sidebar_index, body_index)
+            (result, sidebar_indexes, body_index)
         };
         if str.is_none() {
             return;
         }
         let str = str.unwrap();
-        for index in sidebar_index {
+        for index in sidebar_indexes {
             sidebar[*index] = str.clone();
         }
         body[*index] = str;

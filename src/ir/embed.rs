@@ -1,6 +1,6 @@
 
 use crate::compile::registry::{Key, KeyRegistry};
-use crate::ir::article::sidebar::{SidebarIndex, SidebarPos};
+use crate::ir::article::sidebar::{SidebarIndexes, SidebarPos};
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 
@@ -12,8 +12,8 @@ pub struct Embed {
     pub variables: EmbedVariables,
     pub section_type: SectionType,
     pub sidebar_pos: SidebarPos,
-    pub full_sidebar_index: SidebarIndex,  // Pos, sidebar index
-    pub embed_sidebar_index: SidebarIndex, // Pos, sidebar index
+    pub full_sidebar_indexes: SidebarIndexes,  
+    pub embed_sidebar_indexes: SidebarIndexes, 
     pub body_index: usize,
 }
 
@@ -24,8 +24,8 @@ impl Embed {
         variables: EmbedVariables,
         section_type: SectionType,
         sidebar_pos: SidebarPos,
-        full_sidebar_index: SidebarIndex,
-        embed_sidebar_index: SidebarIndex,
+        full_sidebar_indexes: SidebarIndexes,
+        embed_sidebar_indexes: SidebarIndexes,
         body_index: usize,
     ) -> Self {
         Embed {
@@ -34,8 +34,8 @@ impl Embed {
             variables,
             section_type,
             sidebar_pos,
-            full_sidebar_index,
-            embed_sidebar_index,
+            full_sidebar_indexes,
+            embed_sidebar_indexes,
             body_index,
         }
     }
@@ -49,8 +49,8 @@ impl Embed {
                 pure.variables,
                 pure.section_type,
                 pure.sidebar_pos,
-                pure.full_sidebar_index,
-                pure.embed_sidebar_index,
+                pure.full_sidebar_indexes,
+                pure.embed_sidebar_indexes,
                 pure.body_index,
             )),
             None => Err(anyhow!(
@@ -67,8 +67,8 @@ pub struct PureEmbed {
     variables: EmbedVariables,
     section_type: SectionType,
     sidebar_pos: SidebarPos,
-    full_sidebar_index: SidebarIndex,
-    embed_sidebar_index: SidebarIndex,
+    full_sidebar_indexes: SidebarIndexes,
+    embed_sidebar_indexes: SidebarIndexes,
     body_index: usize,
 }
 
@@ -80,8 +80,8 @@ impl From<Embed> for PureEmbed {
             variables: embed.variables,
             section_type: embed.section_type,
             sidebar_pos: embed.sidebar_pos,
-            full_sidebar_index: embed.full_sidebar_index,
-            embed_sidebar_index: embed.embed_sidebar_index,
+            full_sidebar_indexes: embed.full_sidebar_indexes,
+            embed_sidebar_indexes: embed.embed_sidebar_indexes,
             body_index: embed.body_index,
         }
     }

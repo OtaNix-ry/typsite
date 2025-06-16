@@ -1,5 +1,5 @@
 use crate::ir::rewriter::{BodyRewriter, MetaRewriter, RewriterType};
-use crate::ir::article::sidebar::{SidebarIndex, SidebarPos};
+use crate::ir::article::sidebar::{SidebarIndexes, SidebarPos};
 use crate::pass::pure::PurePassData;
 use std::collections::HashMap;
 use std::mem;
@@ -47,7 +47,7 @@ impl<'a> RewriterBuilder<'a> {
 
     pub fn build<F>(self, f: &mut F) -> BodyRewriter<'a>
     where
-        F: FnMut(SidebarPos) -> SidebarIndex,
+        F: FnMut(SidebarPos) -> SidebarIndexes,
     {
         let index = self.sidebar_pos.map(f).unwrap_or_default();
         BodyRewriter::new(
