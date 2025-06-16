@@ -1,4 +1,4 @@
-use crate::ir::article::sidebar::{HeadingNumberingStyle, Pos, SidebarIndex, SidebarPos};
+use crate::ir::article::sidebar::{HeadingNumberingStyle, Pos, SidebarIndexes, SidebarPos};
 use crate::compile::registry::Key;
 use crate::config::sidebar::SidebarConfig;
 use crate::util::pos_slug;
@@ -45,10 +45,10 @@ pub struct SidebarData<'a> {
     config: &'a SidebarConfig,
     pos: Pos,
     pub contents: Vec<String>,
-    pub show_children: SidebarIndex,
-    pub numberings: HashMap<Pos, SidebarIndex>,
-    pub anchors: HashMap<Pos, SidebarIndex>,
-    pub titles: HashMap<SidebarPos, SidebarIndex>,
+    pub show_children: SidebarIndexes,
+    pub numberings: HashMap<Pos, SidebarIndexes>,
+    pub anchors: HashMap<Pos, SidebarIndexes>,
+    pub titles: HashMap<SidebarPos, SidebarIndexes>,
 }
 
 impl<'a> SidebarData<'a> {

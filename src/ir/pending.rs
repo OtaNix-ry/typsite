@@ -3,7 +3,7 @@ use crate::config::TypsiteConfig;
 use crate::config::anchor::AnchorConfig;
 use crate::config::heading_numbering::HeadingNumberingConfig;
 use crate::ir::article::data::GlobalData;
-use crate::ir::article::sidebar::{HeadingNumberingStyle, Pos, SidebarIndex, SidebarType};
+use crate::ir::article::sidebar::{HeadingNumberingStyle, Pos, SidebarIndexes, SidebarType};
 use crate::ir::embed::SectionType;
 use crate::util::str::{SectionElem, ac_replace};
 use crate::util::{pos_base_on, pos_slug};
@@ -38,17 +38,54 @@ impl BodyNumberingData {
     }
 }
 
+pub struct SidebarData {
+    indexes: SidebarIndexesData,
+    numberings: Vec<SidebarNumberingData>,
+    anchors: Vec<SidebarAnchorData>,
+}
+
+impl SidebarData {
+    fn based_on(
+        &self,
+        config: &HeadingNumberingConfig,
+        base: Option<&Pos>,
+        section_type: SectionType,
+        style: HeadingNumberingStyle,
+        sidebar: &mut [String],
+    ) {
+        self.indexes.based_on(section_type, sidebar);
+        for numbering in self.numberings.iter() {
+            numbering.based_on(config, base, style, sidebar);
+        }
+        for anchor in self.anchors.iter() {
+            anchor.based_on(base, sidebar);
+        }
+    }
+
+    pub fn new(
+        indexes: SidebarIndexesData,
+        numberings: Vec<SidebarNumberingData>,
+        anchors: Vec<SidebarAnchorData>,
+    ) -> Self {
+        Self {
+            indexes,
+            numberings,
+            anchors,
+        }
+    }
+}
+
 pub struct SidebarNumberingData {
     pos: Pos,
     anchor: String,
-    sidebar_index: SidebarIndex,
+    sidebar_indexes: SidebarIndexes,
 }
 impl SidebarNumberingData {
-    pub fn new(pos: Pos, anchor: String, sidebar_index: SidebarIndex) -> Self {
+    pub fn new(pos: Pos, anchor: String, sidebar_indexes: SidebarIndexes) -> Self {
         Self {
             pos,
             anchor,
-            sidebar_index,
+            sidebar_indexes,
         }
     }
     fn based_on(
@@ -59,7 +96,7 @@ impl SidebarNumberingData {
         sidebar: &mut [String],
     ) {
         let numbering = config.get(style, base, &self.pos, self.anchor.as_str());
-        for &index in &self.sidebar_index {
+        for &index in &self.sidebar_indexes {
             sidebar[index] = numbering.clone();
         }
     }
@@ -67,37 +104,37 @@ impl SidebarNumberingData {
 pub struct SidebarAnchorData {
     pos: Pos,
     anchor: String,
-    sidebar_index: SidebarIndex,
+    sidebar_indexes: SidebarIndexes,
 }
 impl SidebarAnchorData {
-    pub fn new(pos: Pos, anchor: String, sidebar_index: SidebarIndex) -> Self {
+    pub fn new(pos: Pos, anchor: String, sidebar_indexes: SidebarIndexes) -> Self {
         Self {
             pos,
             anchor,
-            sidebar_index,
+            sidebar_indexes,
         }
     }
     fn based_on(&self, base: Option<&Pos>, sidebar: &mut [String]) {
         let pos = pos_base_on(base, &self.pos);
         let anchor = pos_slug(&pos, &self.anchor);
-        for &index in &self.sidebar_index {
+        for &index in &self.sidebar_indexes {
             sidebar[index] = anchor.clone();
         }
     }
 }
-pub struct SidebarShowChildrenData {
-    sidebar_index: SidebarIndex,
+pub struct SidebarIndexesData {
+    sidebar_indexes: SidebarIndexes,
 }
-impl SidebarShowChildrenData {
-    pub fn new(sidebar_index: SidebarIndex) -> Self {
-        Self { sidebar_index }
+impl SidebarIndexesData {
+    pub fn new(sidebar_indexes: SidebarIndexes) -> Self {
+        Self { sidebar_indexes }
     }
     fn based_on(&self, section_type: SectionType, sidebar: &mut [String]) {
         let if_show = match section_type {
             SectionType::OnlyTitle => "none",
             _ => "block",
         };
-        for &index in &self.sidebar_index {
+        for &index in &self.sidebar_indexes {
             sidebar[index] = if_show.to_string();
         }
     }
@@ -107,13 +144,13 @@ pub struct EmbedData<'c> {
     pos: Pos,
     slug: Key,
     body_index: usize,
-    full_sidebar_index: SidebarIndex,
-    embed_sidebar_index: SidebarIndex,
+    full_sidebar_indexes: SidebarIndexes,
+    embed_sidebar_indexes: SidebarIndexes,
     open: bool,
-    variabels: EmbedVariables,
+    variables: EmbedVariables,
     title: String,
-    full_sidebar_title_index: SidebarIndex,
-    embed_sidebar_title_index: SidebarIndex,
+    full_sidebar_title_indexes: SidebarIndexes,
+    embed_sidebar_title_indexes: SidebarIndexes,
     pending: &'c Pending<'c>,
     pub section_type: SectionType,
 }
@@ -130,13 +167,13 @@ impl<'c> EmbedData<'c> {
         slug: Key,
         section_type: SectionType,
         body_index: usize,
-        full_sidebar_index: SidebarIndex,
-        embed_sidebar_index: SidebarIndex,
+        full_sidebar_indexes: SidebarIndexes,
+        embed_sidebar_indexes: SidebarIndexes,
         open: bool,
-        variabels: EmbedVariables,
+        variables: EmbedVariables,
         title: String,
-        full_sidebar_title_index: SidebarIndex,
-        embed_sidebar_title_index: SidebarIndex,
+        full_sidebar_title_indexes: SidebarIndexes,
+        embed_sidebar_title_indexes: SidebarIndexes,
         child: &'c Pending,
     ) -> Self {
         Self {
@@ -144,13 +181,13 @@ impl<'c> EmbedData<'c> {
             slug,
             section_type,
             body_index,
-            full_sidebar_index,
-            embed_sidebar_index,
+            full_sidebar_indexes,
+            embed_sidebar_indexes,
             open,
-            variabels,
+            variables,
             title,
-            full_sidebar_title_index,
-            embed_sidebar_title_index,
+            full_sidebar_title_indexes,
+            embed_sidebar_title_indexes,
             pending: child,
         }
     }
@@ -195,14 +232,14 @@ impl<'c> EmbedData<'c> {
             match self.section_type {
                 SectionType::None => {}
                 _ => {
-                    for &title_index in &self.full_sidebar_title_index {
+                    for &title_index in &self.full_sidebar_title_indexes {
                         full_sidebar_vec[title_index] = self.title.clone();
                     }
                     embed_article_sidebar = full_sidebar_vec.join("");
                 }
             }
         } else {
-            for &title_index in &self.embed_sidebar_title_index {
+            for &title_index in &self.embed_sidebar_title_indexes {
                 embed_sidebar_vec[title_index] = self.title.clone();
             }
             embed_article_sidebar = embed_sidebar_vec.join("")
@@ -219,7 +256,7 @@ impl<'c> EmbedData<'c> {
             embed_article_body.push(str);
         }
         let mut replacements: Vec<(&str, &str)> = self
-            .variabels
+            .variables
             .iter()
             .map(|(key, value)| (key.as_str(), value.as_str()))
             .collect();
@@ -230,9 +267,9 @@ impl<'c> EmbedData<'c> {
         let embed_body = metadata.inline(&embed_body);
         body[self.body_index] = embed_body;
         let indexes = if sidebar_type == SidebarType::All {
-            &self.full_sidebar_index
+            &self.full_sidebar_indexes
         } else {
-            &self.embed_sidebar_index
+            &self.embed_sidebar_indexes
         };
         for &index in indexes {
             sidebar[index] = embed_article_sidebar.clone();
@@ -278,9 +315,8 @@ pub struct Pending<'c> {
     // body, sidebar
     pub raw: &'c (Vec<String>, Vec<String>, Vec<String>),
     pub body_numberings: Vec<BodyNumberingData>,
-    pub sidebar_show_children: SidebarShowChildrenData,
-    pub sidebar_numberings: Vec<SidebarNumberingData>,
-    pub sidebar_anchors: Vec<SidebarAnchorData>,
+    pub full_sidebar_data: SidebarData,
+    pub embed_sidebar_data: SidebarData,
     pub embeds: Vec<EmbedData<'c>>,
     pub anchors: &'c Vec<AnchorData>,
 }
@@ -289,18 +325,16 @@ impl<'c> Pending<'c> {
     pub fn new(
         raw: &'c (Vec<String>, Vec<String>, Vec<String>),
         body_numberings: Vec<BodyNumberingData>,
-        sidebar_show_children: SidebarShowChildrenData,
-        sidebar_numberings: Vec<SidebarNumberingData>,
-        sidebar_anchors: Vec<SidebarAnchorData>,
+        full_sidebar_data: SidebarData,
+        embed_sidebar_data: SidebarData,
         embeds: Vec<EmbedData<'c>>,
         anchors: &'c Vec<AnchorData>,
     ) -> Self {
         Self {
             raw,
             body_numberings,
-            sidebar_show_children,
-            sidebar_numberings,
-            sidebar_anchors,
+            full_sidebar_data,
+            embed_sidebar_data,
             embeds,
             anchors,
         }
@@ -320,24 +354,13 @@ impl<'c> Pending<'c> {
         for numbering_in_body in &self.body_numberings {
             numbering_in_body.based_on(&config.heading_numbering, base, style, &mut body);
         }
-
-        let sidebar = if sidebar_type == SidebarType::All {
-            for numbering_in_sidebar in &self.sidebar_numberings {
-                numbering_in_sidebar.based_on(
-                    &config.heading_numbering,
-                    base,
-                    style,
-                    &mut full_sidebar,
-                );
-            }
-            for anchor_in_sidebar in &self.sidebar_anchors {
-                anchor_in_sidebar.based_on(base, &mut full_sidebar);
-            }
-            &mut full_sidebar
-        } else {
-            &mut embed_sidebar
+        let (data,sidebar) = match sidebar_type {
+            SidebarType::All => (&self.full_sidebar_data, &mut full_sidebar),
+            SidebarType::OnlyEmbed => (&self.embed_sidebar_data, &mut embed_sidebar),
         };
-        self.sidebar_show_children.based_on(section_type, sidebar);
+
+        data.based_on(&config.heading_numbering, base, section_type, style, sidebar);
+
         for embed in &self.embeds {
             embed.based_on(
                 config,

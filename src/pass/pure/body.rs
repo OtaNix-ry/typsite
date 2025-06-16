@@ -1,7 +1,7 @@
 use crate::compile::error::TypError;
 use crate::ir::embed::Embed;
 use crate::ir::rewriter::BodyRewriter;
-use crate::ir::article::sidebar::{SidebarIndex, SidebarPos};
+use crate::ir::article::sidebar::{SidebarIndexes, SidebarPos};
 use crate::pass::pure::PurePassData;
 use crate::pass::pure::embed::EmbedBuilder;
 use crate::pass::pure::rewriter::RewriterBuilder;
@@ -60,8 +60,8 @@ impl<'a> BodyBuilder<'a> {
         embed_sidebar_mapping: &mut E,
     ) -> (Vec<String>, Vec<BodyRewriter<'a>>, Vec<Embed>)
     where
-        F: FnMut(SidebarPos) -> SidebarIndex,
-        E: FnMut(SidebarPos) -> SidebarIndex,
+        F: FnMut(SidebarPos) -> SidebarIndexes,
+        E: FnMut(SidebarPos) -> SidebarIndexes,
     {
         (
             self.body,

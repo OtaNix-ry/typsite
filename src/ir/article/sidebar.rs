@@ -5,30 +5,30 @@ use std::collections::{HashMap, HashSet};
 
 pub type Pos = Vec<usize>;
 pub type SidebarPos = (Pos, usize);
-pub type SidebarIndex = HashSet<usize>;
+pub type SidebarIndexes = HashSet<usize>;
 
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Sidebar {
     contents: Vec<String>,
-    title_index: SidebarIndex,
-    show_children: SidebarIndex,
+    title_indexes: SidebarIndexes,
+    show_children: SidebarIndexes,
     #[serde(with = "pos_to_sidebar_index_serde")]
-    numberings: HashMap<Pos, SidebarIndex>,
+    numberings: HashMap<Pos, SidebarIndexes>,
     #[serde(with = "pos_to_sidebar_index_serde")]
-    anchors: HashMap<Pos, SidebarIndex>
+    anchors: HashMap<Pos, SidebarIndexes>
 }
 impl Sidebar {
     pub fn new(
         contents: Vec<String>,
-        title_index: SidebarIndex,
-        show_children: SidebarIndex,
-        numbering: HashMap<Pos, SidebarIndex>,
-        anchor: HashMap<Pos, SidebarIndex>
+        title_indexes: SidebarIndexes,
+        show_children: SidebarIndexes,
+        numbering: HashMap<Pos, SidebarIndexes>,
+        anchor: HashMap<Pos, SidebarIndexes>
     ) -> Self {
         Self {
             contents,
-            title_index,
+            title_indexes,
             show_children,
             numberings: numbering,
             anchors: anchor
@@ -42,23 +42,23 @@ impl Sidebar {
     pub fn cache(&self, metadata: &Metadata) -> Vec<String> {
         let title = metadata.contents.get(TITLE_KEY).unwrap();
         let mut contents = self.contents.clone();
-        for &title_index in &self.title_index {
+        for &title_index in &self.title_indexes {
             contents[title_index] = title.to_string();
         }
         contents
     }
-    pub fn title_index(&self) -> &SidebarIndex {
-        &self.title_index
+    pub fn title_index(&self) -> &SidebarIndexes {
+        &self.title_indexes
     }
 
-    pub fn numberings(&self) -> &HashMap<Pos, SidebarIndex> {
+    pub fn numberings(&self) -> &HashMap<Pos, SidebarIndexes> {
         &self.numberings
     }
 
-    pub fn anchors(&self) -> &HashMap<Pos, SidebarIndex> {
+    pub fn anchors(&self) -> &HashMap<Pos, SidebarIndexes> {
         &self.anchors
     }
-    pub fn show_children(&self) -> &SidebarIndex {
+    pub fn indexes(&self) -> &SidebarIndexes {
         &self.show_children
     }
 }
@@ -71,7 +71,7 @@ impl From<&str> for SidebarType {
     fn from(value: &str) -> Self {
         match value.to_lowercase().as_str() {
             "all" => SidebarType::All,
-            "only_embed" => SidebarType::OnlyEmbed,
+            "only-embed" | "only_embed" => SidebarType::OnlyEmbed,
             _ => SidebarType::All,
         }
     }
@@ -133,7 +133,7 @@ mod pos_to_sidebar_index_serde {
     use serde::de::Error;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     pub fn serialize<S: Serializer>(
-        map: &HashMap<Pos, SidebarIndex>,
+        map: &HashMap<Pos, SidebarIndexes>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
         let mut entries = Vec::with_capacity(map.len());
@@ -150,8 +150,8 @@ mod pos_to_sidebar_index_serde {
     }
     pub fn deserialize<'ce, D: Deserializer<'ce>>(
         deserializer: D,
-    ) -> Result<HashMap<Pos, SidebarIndex>, D::Error> {
-        let entries: Vec<(String, SidebarIndex)> = Vec::deserialize(deserializer)?;
+    ) -> Result<HashMap<Pos, SidebarIndexes>, D::Error> {
+        let entries: Vec<(String, SidebarIndexes)> = Vec::deserialize(deserializer)?;
         let mut map = HashMap::with_capacity(entries.len());
         for (pos_str, set) in entries {
             let pos: Pos = if pos_str.is_empty() {
@@ -174,15 +174,15 @@ mod test_serde_pos_to_sidebar_index {
 
     use anyhow::{Context, Result};
 
-    use crate::ir::article::sidebar::{Pos, SidebarIndex};
+    use crate::ir::article::sidebar::{Pos, SidebarIndexes};
     #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
     struct WrapperPosToSidebarIndex {
         #[serde(with = "super::pos_to_sidebar_index_serde")]
-        map: HashMap<Pos, SidebarIndex>,
+        map: HashMap<Pos, SidebarIndexes>,
     }
     #[test]
     fn pos_to_sidebar_index() -> Result<()> {
-        let mut test: HashMap<Pos, SidebarIndex> = HashMap::new();
+        let mut test: HashMap<Pos, SidebarIndexes> = HashMap::new();
         test.insert(vec![1], vec![10].into_iter().collect());
         test.insert(vec![1, 1], vec![12, 15].into_iter().collect());
         test.insert(vec![2, 3], vec![17, 20].into_iter().collect());

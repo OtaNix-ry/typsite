@@ -1,5 +1,5 @@
 use crate::compile::registry::Key;
-use crate::ir::article::sidebar::SidebarIndex;
+use crate::ir::article::sidebar::SidebarIndexes;
 use crate::config::TypsiteConfig;
 use anyhow::*;
 use std::result::Result::Ok;
@@ -17,7 +17,7 @@ pub struct BodyRewriter<'a> {
     pub id: &'a str,
     pub rewriter_type: RewriterType,
     pub attributes: HashMap<String, String>,
-    pub sidebar_index: SidebarIndex,
+    pub sidebar_indexes: SidebarIndexes,
     pub body_index: usize,
 }
 
@@ -26,14 +26,14 @@ impl<'a> BodyRewriter<'a> {
         id: &'a str,
         rewriter_type: RewriterType,
         attributes: HashMap<String, String>,
-        sidebar_index: SidebarIndex,
+        sidebar_indexes: SidebarIndexes,
         body_index: usize,
     ) -> Self {
         Self {
             id,
             rewriter_type,
             attributes,
-            sidebar_index,
+            sidebar_indexes,
             body_index,
         }
     }
@@ -49,7 +49,7 @@ impl<'a> BodyRewriter<'a> {
                 id,
                 rewriter_type: pure.rewriter_type,
                 attributes: pure.attributes,
-                sidebar_index: pure.sidebar_pos,
+                sidebar_indexes: pure.sidebar_pos,
                 body_index: pure.body_index,
             })
         } else {
@@ -106,7 +106,7 @@ pub struct PureRewriter {
     id: String,
     rewriter_type: RewriterType,
     attributes: HashMap<String, String>,
-    sidebar_pos: SidebarIndex,
+    sidebar_pos: SidebarIndexes,
     body_index: usize,
 }
 
@@ -116,7 +116,7 @@ impl PureRewriter {
         id: String,
         rewriter_type: RewriterType,
         attributes: HashMap<String, String>,
-        sidebar_pos: SidebarIndex,
+        sidebar_pos: SidebarIndexes,
         body_index: usize,
     ) -> Self {
         Self {
@@ -135,7 +135,7 @@ impl From<BodyRewriter<'_>> for PureRewriter {
             id: rewriter.id.to_string(),
             rewriter_type: rewriter.rewriter_type,
             attributes: rewriter.attributes,
-            sidebar_pos: rewriter.sidebar_index,
+            sidebar_pos: rewriter.sidebar_indexes,
             body_index: rewriter.body_index,
         }
     }
@@ -146,7 +146,7 @@ impl From<MetaRewriter<'_>> for PureRewriter {
             id: rewriter.id.to_string(),
             rewriter_type: rewriter.rewriter_type,
             attributes: rewriter.attributes,
-            sidebar_pos: SidebarIndex::default(),
+            sidebar_pos: SidebarIndexes::default(),
             body_index: rewriter.body_index,
         }
     }
