@@ -12,10 +12,11 @@ use rayon::prelude::*;
 use std::collections::hash_map::Drain;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 pub struct ArticleCache<'a> {
     cache_article_path: PathBuf,
-    pub cache: HashMap<Key, Article<'a>>,
+    cache: HashMap<Key, Article<'a>>,
 }
 
 impl<'a> ArticleCache<'a> {
@@ -142,6 +143,9 @@ impl<'a> ArticleCache<'a> {
         Ok(())
     }
 
+    pub fn get(&self,slug:&Arc<str>) -> Option<&Article<'a>> {
+        self.cache.get(slug)
+    }
     pub fn drain(&mut self) -> Drain<'_, Key, Article<'a>> {
         self.cache.drain()
     }

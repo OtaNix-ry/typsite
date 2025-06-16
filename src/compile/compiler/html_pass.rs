@@ -8,10 +8,12 @@ use std::fs;
 use std::path::PathBuf;
 use std::result::Result::Ok;
 
+use super::cache::article::ArticleCache;
 use super::ErrorArticles;
 
 pub fn pass_html<'b, 'a: 'b>(
     config: &'a TypsiteConfig<'a>,
+    cache: &'b ArticleCache<'a>,
     registry: &mut KeyRegistry,
     changed_html_paths: &mut Vec<PathBuf>,
 ) -> (Vec<Article<'a>>, ErrorArticles) {
@@ -32,7 +34,10 @@ pub fn pass_html<'b, 'a: 'b>(
             Ok((slug, typst_path, html_path)) => {
                 let result = fs::read_to_string(html_path)
                     .context(format!("Read file {html_path:?} failed."))
-                    .map(|html| pass_pure(config, registry, typst_path, slug.clone(), &html));
+                    .map(|html| {
+                        let cache = cache.get(&slug);
+                        pass_pure(config, registry, typst_path, slug.clone(),cache, &html)
+                    });
                 (i, result)
             }
             Err(e) => (i, Err(e)),

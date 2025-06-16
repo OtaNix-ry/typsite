@@ -133,8 +133,8 @@ impl Compiler {
 
         //3. Pass HTML
         // Pass updated html files
-        let (changed_articles, error_pending_articles) =
-            pass_html(&config, &mut registry, &mut changed_html_paths);
+        let (changed_articles, error_passing_articles) =
+            pass_html(&config, &article_cache,  &mut registry, &mut changed_html_paths);
 
         let changed_article_slugs = changed_articles
             .iter()
@@ -194,7 +194,7 @@ impl Compiler {
         let mut error_articles = Vec::new();
         error_articles.extend(error_typst_articles);
         error_articles.extend(error_cache_articles);
-        error_articles.extend(error_pending_articles);
+        error_articles.extend(error_passing_articles);
         error_articles.extend(error_pages);
 
         let output = Output {

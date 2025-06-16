@@ -26,10 +26,11 @@ pub fn pass_pure<'b, 'a: 'b, 'k, 'c>(
     registry: &'k KeyRegistry,
     path: SlugPath,
     slug: Key,
+    cache: Option<&'k Article<'a>>,
     src: &'c str,
 ) -> TypResult<Article<'a>> {
     let tokenizer = HtmlTokenizer::new(src);
-    PurePass::new(config, registry, path, slug).run(tokenizer)
+    PurePass::new(config, registry, path, slug, cache).run(tokenizer)
 }
 
 pub fn pass_rewriter_body<'c, 'b: 'c, 'a: 'b>(

@@ -30,18 +30,18 @@ impl<'a> MetadataBuilder<'a> {
         let heading_numbering_style = options.default_metadata.options.heading_numbering;
         let sidebar_type = options.default_metadata.options.sidebar_type;
         let parent = None;
-            // options
-            // .default_metadata
-            // .graph
-            // .parent
-            // .as_ref()
-            // .and_then(|parent| {
-            //     let parent = config.format_slug(parent);
-            //     registry
-            //         .know(parent, "default_metadata.graph.parent", "options.toml")
-            //         .ok()
-            // })
-            // .filter(|parent| parent.as_str() != self_slug.as_str());
+        // options
+        // .default_metadata
+        // .graph
+        // .parent
+        // .as_ref()
+        // .and_then(|parent| {
+        //     let parent = config.format_slug(parent);
+        //     registry
+        //         .know(parent, "default_metadata.graph.parent", "options.toml")
+        //         .ok()
+        // })
+        // .filter(|parent| parent.as_str() != self_slug.as_str());
 
         Self {
             slug: self_slug,
@@ -113,8 +113,16 @@ impl<'a> MetadataBuilder<'a> {
         self.children.insert(slug);
     }
 
-    pub(crate) fn build(self, slug: Key) -> anyhow::Result<Metadata<'a>> {
-        let contents = MetaContents::new(slug.clone(), self.contents);
+    pub(crate) fn build(
+        self,
+        slug: Key,
+        cache: Option<&MetaContents<'a>>,
+    ) -> anyhow::Result<Metadata<'a>> {
+        let updated = cache
+            .as_ref()
+            .map(|cache| !cache.same_contents(&self.contents))
+            .unwrap_or(true);
+        let contents = MetaContents::new(slug.clone(), self.contents, updated);
         let options = MetaOptions {
             heading_numbering_style: self.heading_numbering_style,
             sidebar_type: self.sidebar_type,
