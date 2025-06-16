@@ -39,6 +39,7 @@ mod sidebar;
 pub struct PurePass<'a, 'k> {
     pub path: SlugPath,
     pub slug: Key,
+    pub cache: Option<&'k Article<'a>>,
     pub config: &'a TypsiteConfig<'a>,
     pub root: &'a Path,
     pub registry: &'k KeyRegistry,
@@ -88,10 +89,19 @@ pub struct PurePassData<'a> {
 }
 
 impl<'a, 'k> PurePassData<'a> {
-    fn from(pure_pass: PurePass<'a, 'k>) -> (String, BodyBuilder<'a>, TypError, PurePassData<'a>) {
+    fn from(
+        pure_pass: PurePass<'a, 'k>,
+    ) -> (
+        String,
+        BodyBuilder<'a>,
+        TypError,
+        Option<&'k Article<'a>>,
+        PurePassData<'a>,
+    ) {
         let head = pure_pass.head;
         let body = pure_pass.body;
         let error = pure_pass.error;
+        let cache = pure_pass.cache;
         let data = PurePassData {
             path: pure_pass.path,
             slug: pure_pass.slug,
@@ -105,7 +115,7 @@ impl<'a, 'k> PurePassData<'a> {
             numberings: pure_pass.numberings,
             anchors: pure_pass.anchors,
         };
-        (head, body, error, data)
+        (head, body, error, cache, data)
     }
 }
 
@@ -118,8 +128,8 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
     pub fn run(mut self, tokenizer: HtmlTokenizer<StringReader<'b>>) -> TypResult<Article<'a>> {
         let result = self.visit_html(tokenizer);
         self.result(result);
-        let (head, body, mut error, data) = PurePassData::from(self);
-        match Self::article(head, body, &mut error, data) {
+        let (head, body, mut error,cache, data) = PurePassData::from(self);
+        match Self::article(head, body, &mut error,cache, data) {
             Ok(article) if !error.has_error() => return Ok(article),
             Err(err) => error.add(err),
             _ => {}
@@ -131,13 +141,14 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         head: String,
         mut body: BodyBuilder<'a>,
         error: &mut TypError,
+        cache: Option<&'k Article<'a>>,
         data: PurePassData<'a>,
     ) -> Result<Article<'a>> {
         body.build_rewriter_attrs(&data, error);
         let slug = data.slug;
         let path = data.path;
         let schema = data.schema.context("No schema, skip..")?;
-        let metadata = data.metadata.build(slug.clone())?;
+        let metadata = data.metadata.build(slug.clone(), cache.as_ref().map(|it| it.get_meta_contents()))?;
         let (mut full_sidebar, mut embed_sidebar) = data.sidebar.build(&data.config.sidebar);
         let (body_content, body_rewriters, embeds) = body.build(
             &mut |pos| full_sidebar.titles.remove(&pos).unwrap(),
@@ -266,11 +277,13 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         registry: &'k KeyRegistry,
         path: SlugPath,
         slug: Key,
+        cache: Option<&'k Article<'a>>,
     ) -> PurePass<'a, 'k> {
         let metadata = MetadataBuilder::new(slug.clone());
         Self {
             path,
             slug: slug.clone(),
+            cache,
             config,
             root: config.typst_path,
             registry,

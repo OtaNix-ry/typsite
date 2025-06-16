@@ -27,20 +27,26 @@ pub const HAS_PARENT_REPLACEMENT_: &str = "{has_parent}";
 pub struct MetaContents<'a> {
     slug: Key,
     // Content supported
-    contents: HashMap<String, MetaContent<'a>>,
+    pub contents: HashMap<String, MetaContent<'a>>,
     replacement: OnceLock<HashMap<String, String>>,
     parent: OnceLock<bool>,
     parent_replacement: OnceLock<HashMap<String, String>>,
+    updated: bool, // if the article is updated currently
 }
 
 impl<'b, 'a: 'b> MetaContents<'a> {
-    pub fn new(slug: Key, contents: HashMap<String, MetaContent<'a>>) -> MetaContents<'a> {
+    pub fn new(
+        slug: Key,
+        contents: HashMap<String, MetaContent<'a>>,
+        updated: bool,
+    ) -> MetaContents<'a> {
         MetaContents {
             slug,
             contents,
             replacement: OnceLock::new(),
             parent: OnceLock::new(),
             parent_replacement: OnceLock::new(),
+            updated,
         }
     }
 
@@ -59,7 +65,13 @@ impl<'b, 'a: 'b> MetaContents<'a> {
                 err.ok_typ(result)
             })
             .collect();
-        err.err_or(|| MetaContents::new(self_slug, contents))
+        err.err_or(|| MetaContents::new(self_slug, contents, false))
+    }
+    pub fn same_contents(&self,other: &HashMap<String, MetaContent<'a>>) -> bool{
+        self.contents.eq(other)
+    }
+    pub fn is_updated(&self) -> bool {
+        self.updated
     }
 
     pub fn get(&self, key: &str) -> Option<Arc<str>> {
@@ -97,8 +109,14 @@ impl<'b, 'a: 'b> MetaContents<'a> {
                 self.slug.as_str()
             };
 
-            map.insert(SLUG_DIPLAY_REPLACEMENT.to_string(), slug_display.to_string());
-            map.insert(SLUG_DIPLAY_REPLACEMENT_.to_string(), slug_display.to_string());
+            map.insert(
+                SLUG_DIPLAY_REPLACEMENT.to_string(),
+                slug_display.to_string(),
+            );
+            map.insert(
+                SLUG_DIPLAY_REPLACEMENT_.to_string(),
+                slug_display.to_string(),
+            );
 
             let slug = if !compile_options.pretty_url {
                 format!("{}.html", self.slug)

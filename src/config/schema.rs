@@ -39,6 +39,8 @@ impl SchemaConfig {
 
 }
 
+const PARENT_KEYWORD: &str = "@parent}";
+
 /**
 * A struct that represents a Schema.
 */
@@ -48,6 +50,7 @@ pub struct Schema {
     pub content: bool,
     pub sidebar: bool,
     pub footer: bool,
+    pub parent: bool, // If used parent's metacontent by {key@parent}
     pub head: String,
     pub body: String,
 }
@@ -74,6 +77,7 @@ impl Schema {
             }
             Ok(())
         })?;
+        let parent = head.contains(PARENT_KEYWORD) || body.contains(PARENT_KEYWORD);
         let path = Arc::from(path);
         let schema = Self {
             id,
@@ -81,6 +85,7 @@ impl Schema {
             content,
             sidebar,
             footer,
+            parent,
             head,
             body,
         };

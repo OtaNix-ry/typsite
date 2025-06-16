@@ -39,10 +39,29 @@ jobs:
           cp ./target/release/typsite ./typsite
       - name: Make binary executable
         run: chmod +x ./typsite
-      - name: Typsite compile 
+      - name: Typsite init 
         run: |
           ./typsite init
-          ./typsite c
+      # Here we have to try multiple times
+      # since there are network error caused by typst packages randomly
+      - name: Typsite compile
+        continue-on-error: true
+        id: compile_1
+        run: ./typsite c
+      - name: Typsite compile (retry 1)
+        continue-on-error: true
+        id: compile_2
+        if: steps.compile_1.outcome == 'failure'
+        run: ./typsite c
+      - name: Typsite compile (retry 2)
+        continue-on-error: true
+        id: compile_3
+        if: steps.compile2.outcome == 'failure'
+        run: ./typsite c
+      - name: Typsite compile (retry 3)
+        id: compile_4
+        if: steps.compile3.outcome == 'failure'
+        run: ./typsite c
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

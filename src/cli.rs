@@ -1,10 +1,10 @@
-use std::fs;
+use std::{fs, process::exit};
 
 use crate::compile::compiler::Compiler;
+use crate::compile::options::CompileOptions;
 use crate::config::highlight::CodeHightlightConfig;
 use crate::config::resources::copy_default_typsite;
-use crate::compile::options::CompileOptions;
-use anyhow::{Context, Ok, Result};
+use anyhow::{Context,Result};
 use clap::Parser;
 use std::path::Path;
 
@@ -86,14 +86,17 @@ impl Executor {
         match port {
             0 => {
                 println!("Start compiling...");
-                compiler.compile()?;
-                println!("Compiling done.");
+                if let (_, true) = compiler.compile()? {
+                    println!("Compiling done.");
+                } else {
+                    exit(1);
+                }
             }
             _ => {
                 println!("Start watching...");
                 Self::clean(&compiler.cache_path)?;
                 Self::clean(&compiler.output_path)?;
-                compiler.watch(host,port).await?;
+                compiler.watch(host, port).await?;
             }
         }
         Ok(())

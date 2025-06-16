@@ -73,7 +73,8 @@ impl Compiler {
     pub async fn watch(self, host: String, port: u16) -> Result<()> {
         watch(self, host, port).await
     }
-    pub fn compile(&self) -> Result<bool> {
+    // return (updated, no error)
+    pub fn compile(&self) -> Result<(bool,bool)> {
         //1. Initialize input & config
         let input = initialize(
             &self.cache_path,
@@ -84,7 +85,7 @@ impl Compiler {
         )?;
         // If all files are not changed, return
         if input.unchanged() {
-            return Ok(false);
+            return Ok((false,true));
         } else if !input.overall_compile_needed {
             println!("Files changed, compiling...");
         }
@@ -133,8 +134,8 @@ impl Compiler {
 
         //3. Pass HTML
         // Pass updated html files
-        let (changed_articles, error_pending_articles) =
-            pass_html(&config, &mut registry, &mut changed_html_paths);
+        let (changed_articles, error_passing_articles) =
+            pass_html(&config, &article_cache,  &mut registry, &mut changed_html_paths);
 
         let changed_article_slugs = changed_articles
             .iter()
@@ -194,8 +195,10 @@ impl Compiler {
         let mut error_articles = Vec::new();
         error_articles.extend(error_typst_articles);
         error_articles.extend(error_cache_articles);
-        error_articles.extend(error_pending_articles);
+        error_articles.extend(error_passing_articles);
         error_articles.extend(error_pages);
+
+        let no_error = error_articles.is_empty();
 
         let output = Output {
             monitor,
@@ -215,7 +218,7 @@ impl Compiler {
 
         sync_files_to_output(output);
 
-        Ok(updated)
+        Ok((updated,no_error))
     }
 }
 

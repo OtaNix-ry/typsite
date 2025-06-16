@@ -1,6 +1,6 @@
 use super::cache::dep::RevDeps;
-use crate::compile::registry::Key;
 use crate::compile::compiler::PathBufs;
+use crate::compile::registry::Key;
 use crate::ir::article::Article;
 use std::collections::{HashMap, HashSet};
 
@@ -83,25 +83,45 @@ pub(super) fn analyse_slugs_to_update_and_load<'b, 'a: 'b>(
     fn spread_parent<'b, 'a: 'b>(
         articles: &HashMap<Key, Article<'a>>,
         slug: &Key,
-        update: &mut HashSet<Key>,
+        add_self_if_schema_parent: bool,
+        walked: &mut HashSet<Key>,
+        to_update_slugs: &mut HashSet<Key>,
         updated_paths: &mut PathBufs,
     ) {
         if let Some(article) = articles.get(slug) {
-            update.insert(slug.clone()); // Only the existing article is collected.
-            updated_paths.insert(article.path.to_path_buf());
+            // Only if the article exists
+            if !add_self_if_schema_parent || article.schema.parent {
+                to_update_slugs.insert(slug.clone());
+                updated_paths.insert(article.path.to_path_buf());
+            }
+            if walked.contains(slug) {
+                return;
+            }
+            walked.insert(slug.clone());
             // Spread all parents
             for parent in &article.get_meta_node().parents {
-                if update.contains(parent) {
-                    continue;
-                }
-                spread_parent(articles, parent, update, updated_paths);
+                spread_parent(
+                    articles,
+                    parent,
+                    false,
+                    walked,
+                    to_update_slugs,
+                    updated_paths,
+                );
             }
-            // Spread all children (children can use parent's meta contents)
+            if !article.get_meta_contents().is_updated() {
+                return;
+            }
+            // Spread all children
             for child in &article.get_meta_node().children {
-                if update.contains(child) {
-                    continue;
-                }
-                spread_parent(articles, child, update, updated_paths);
+                spread_parent(
+                    articles,
+                    child,
+                    true,
+                    walked,
+                    to_update_slugs,
+                    updated_paths,
+                );
             }
         }
     }
@@ -129,12 +149,15 @@ pub(super) fn analyse_slugs_to_update_and_load<'b, 'a: 'b>(
         }
     }
 
+    let mut walked = HashSet::new();
     // Spread all dependencies
     // Make sure all files that need to update are collected in slugs_need_to_update
     slugs.into_iter().for_each(|slug| {
         spread_parent(
             loaded_articles,
             &slug,
+            true,
+            &mut walked,
             &mut slugs_to_update,
             updated_typst_paths,
         );
