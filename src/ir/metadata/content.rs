@@ -67,7 +67,7 @@ impl<'b, 'a: 'b> MetaContents<'a> {
             .collect();
         err.err_or(|| MetaContents::new(self_slug, contents, false))
     }
-    pub fn same_contents(&self,other: &HashMap<String, MetaContent<'a>>) -> bool{
+    pub fn same_contents(&self, other: &HashMap<String, MetaContent<'a>>) -> bool {
         self.contents.eq(other)
     }
     pub fn is_updated(&self) -> bool {
@@ -183,17 +183,24 @@ impl<'b, 'a: 'b> MetaContents<'a> {
             options
                 .default_metadata
                 .graph
-                .default_parent_slug(|slug| global_data.article(slug).map(|it| it.slug.clone()))
+                .default_parent_slug(&global_data.config, |slug| {
+                    global_data.article(&slug).map(|it| it.slug.clone())
+                })
         });
 
         let self_metadata = global_data.metadata(self.slug.as_str()).unwrap();
-        self.parent.get_or_init(|| {
+
+
+        let parent = self.parent.get_or_init(|| {
             self_metadata.node.parent.is_some()
                 || default_parent_slug
                     .as_ref()
                     .map(|default| default.as_str() != self.slug.as_str())
                     .unwrap_or(false)
         });
+        if !parent {
+            return;
+        }
         self.parent_replacement.get_or_init(|| {
             self_metadata
                 .node
@@ -211,6 +218,7 @@ impl<'b, 'a: 'b> MetaContents<'a> {
                     global_data
                         .metadata(parent.as_str())
                         .map(|parent_metadata| {
+                            parent_metadata.contents.init_parent(global_data);
                             parent_metadata
                                 .contents
                                 .init_replacement()
