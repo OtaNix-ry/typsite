@@ -43,8 +43,7 @@ pub struct CodeFallbackStyle {
 }
 pub mod metadata {
     use crate::{
-        compile::{proj_options, registry::Key},
-        ir::article::sidebar::{HeadingNumberingStyle, SidebarType},
+        compile::{proj_options, registry::Key}, config::TypsiteConfig, ir::article::sidebar::{HeadingNumberingStyle, SidebarType}
     };
     use serde::{Deserialize, Serialize};
     use std::{
@@ -81,7 +80,8 @@ pub mod metadata {
     impl Graph {
         pub fn default_parent_slug(
             &self,
-            verify_slug: impl FnOnce(&String) -> Option<Key>,
+            config:&TypsiteConfig,
+            verify_slug: impl FnOnce(String) -> Option<Key>,
         ) -> Option<Key> {
             self.default_parent_slug
                 .get_or_init(|| {
@@ -90,6 +90,7 @@ pub mod metadata {
                             .graph
                             .parent
                             .as_ref()
+                            .map(|slug| config.format_slug(&slug))
                             .and_then(verify_slug)
                     })
                 })
