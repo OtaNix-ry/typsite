@@ -183,7 +183,7 @@ impl<'b, 'a: 'b> MetaContents<'a> {
             options
                 .default_metadata
                 .graph
-                .default_parent_slug(&global_data.config, |slug| {
+                .default_parent_slug(global_data.config, |slug| {
                     global_data.article(&slug).map(|it| it.slug.clone())
                 })
         });

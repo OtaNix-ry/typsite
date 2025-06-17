@@ -1,15 +1,12 @@
 use super::cache::monitor::Monitor;
-use super::{ErrorArticles, UpdatedPages, PathBufs};
+use super::{ErrorArticles, PathBufs, UpdatedPages};
 use crate::util::error::log_err;
 use crate::util::fs::{remove_file, write_into_file};
 use crate::util::path::relative_path;
 use anyhow::{Ok, *};
 use rayon::prelude::*;
 use std::fs;
-use std::{
-    fs::create_dir_all,
-    path::Path,
-};
+use std::{fs::create_dir_all, path::Path};
 
 pub struct Output<'a> {
     pub monitor: Monitor<'a>,
@@ -74,7 +71,7 @@ pub fn sync_files_to_output<'a>(output: Output<'a>) {
     );
     sync_files(assets_path, output_path, changed_assets, deleted_assets);
     write_pages(&monitor, typst_path, output_path, updated_pages);
-    remove_pages(typst_path,output_path,deleted_pages);
+    remove_pages(typst_path, output_path, deleted_pages);
     remove_errors(
         monitor,
         error_articles,
@@ -84,7 +81,7 @@ pub fn sync_files_to_output<'a>(output: Output<'a>) {
     );
 }
 
-fn write_pages(monitor:&Monitor, typst_path: &Path, output_path: &Path, output: UpdatedPages) {
+fn write_pages(monitor: &Monitor, typst_path: &Path, output_path: &Path, output: UpdatedPages) {
     output
         .into_iter()
         .map(|(typ_path, html)| {
@@ -102,7 +99,7 @@ fn write_pages(monitor:&Monitor, typst_path: &Path, output_path: &Path, output: 
         })
         .for_each(log_err);
 }
-fn remove_pages(typst_path: &Path,output_path: &Path,deleted_pages: PathBufs) {
+fn remove_pages(typst_path: &Path, output_path: &Path, deleted_pages: PathBufs) {
     deleted_pages
         .into_par_iter()
         .map(|path| remove_output(typst_path, &path.with_extension("html"), output_path))
@@ -172,13 +169,13 @@ fn remove_errors(
     error_articles
         .into_iter()
         .map(|(path, error)| {
+            monitor.retry_next_time(&path);
             let mut cache_html_path = if !path.starts_with(html_cache_path) {
                 html_cache_path.join(path)
             } else {
                 path
             };
             cache_html_path.set_extension("html");
-            monitor.retry_next_time(&cache_html_path);
             let html_path = relative_path(html_cache_path, &cache_html_path).unwrap();
             let result = remove_output(typst_path, &html_path, output_path);
             eprintln!("{error}");
