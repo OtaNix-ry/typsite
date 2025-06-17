@@ -19,20 +19,20 @@ impl HeadingNumberingConfig {
         Ok(Self { path, head, body })
     }
 
-    pub fn get(
-        &self,
-        style: HeadingNumberingStyle,
-        base: Option<&Pos>,
-        pos: &Pos,
-        anchor: &str,
-    ) -> String {
-        let result = pos_base_on(base, pos);
-        let numbering = style.display(&result);
-        ac_replace(
-            self.body.as_str(),
-            &[("{numbering}", &numbering), ("{anchor}", anchor)],
-        )
-    }
+    // pub fn get(
+    //     &self,
+    //     style: HeadingNumberingStyle,
+    //     base: Option<&Pos>,
+    //     pos: &Pos,
+    //     anchor: &str,
+    // ) -> String {
+    //     let result = pos_base_on(base, pos);
+    //     let numbering = style.display(&result);
+    //     ac_replace(
+    //         self.body.as_str(),
+    //         &[("{numbering}", &numbering), ("{anchor}", anchor)],
+    //     )
+    // }
     pub fn get_with_pos_anchor(
         &self,
         style: HeadingNumberingStyle,
