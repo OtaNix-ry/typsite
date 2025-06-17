@@ -2,17 +2,14 @@ use crate::compile::error::TypError;
 use crate::config::TypsiteConfig;
 use rayon::prelude::*;
 use std::sync::Arc;
-use std::{
-    fs::create_dir_all,
-    path::Path,
-    result::Result::Ok,
-};
+use std::{fs::create_dir_all, path::Path, result::Result::Ok};
 
 use crate::util::error::TypsiteError;
 use crate::util::fs::create_all_parent_dir;
 use anyhow::{Context, Error};
 use std::process::Command;
 
+use super::cache::monitor::Monitor;
 use super::{ErrorArticles, PathBufs};
 
 pub fn compile_typst(root: &Path, input: &Path, output: &Path) -> anyhow::Result<()> {
@@ -52,12 +49,15 @@ pub fn compile_typst(root: &Path, input: &Path, output: &Path) -> anyhow::Result
 
 pub fn compile_typsts(
     config: &TypsiteConfig<'_>,
+    monitor: &mut Monitor,
     typst_path: &Path,
     html_cache_path: &Path,
     changed_typst_paths: &PathBufs,
+    retry_typst_paths: PathBufs,
 ) -> ErrorArticles {
     changed_typst_paths
         .par_iter()
+        .chain(&retry_typst_paths)
         .map(|typ_path| {
             let slug = config.path_to_slug(typ_path);
             let mut html_path = typ_path.clone();
@@ -66,21 +66,25 @@ pub fn compile_typsts(
             create_dir_all(cache_output.parent().unwrap()).unwrap();
             (
                 slug,
-                cache_output.clone(),
+                typ_path.clone(),
                 compile_typst(typst_path, typ_path, &cache_output),
             )
         })
         .filter_map(|(slug, path, res)| {
-            if let Ok(slug) = slug {
+            let error = if let Ok(slug) = slug {
                 res.err().map(|err| {
                     let err = TypError::new_with(Arc::from(slug), vec![err]);
-                    (path, format!("{err}"))
+                    (path.clone(), format!("{err}"))
                 })
             } else if let Err(err) = slug {
-                Some((path, format!("{err}")))
+                Some((path.clone(), format!("{err}")))
             } else {
                 None
+            };
+            if error.is_none() {
+                monitor.remove_retry_hash(&path);
             }
+            error
         })
         .collect()
 }

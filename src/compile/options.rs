@@ -90,7 +90,7 @@ pub mod metadata {
                             .graph
                             .parent
                             .as_ref()
-                            .map(|slug| config.format_slug(&slug))
+                            .map(|slug| config.format_slug(slug))
                             .and_then(verify_slug)
                     })
                 })

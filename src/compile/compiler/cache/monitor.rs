@@ -102,24 +102,31 @@ impl<'a> Monitor<'a> {
         )
     }
 
-    // Remember those (failed) html files, an attempt will be made to load them next time
-    pub fn retry_next_time(&self, cache_html_path: &Path) {
-        let html_hash = cache_html_path.with_extension("html.hash");
-        let html_hash_path = self.hash_path.join(&html_hash);
-        let retry_path = self.retry_path.join(&html_hash);
-        copy_file(html_hash_path, retry_path).unwrap_or_else(|err| eprintln!("{err}"));
+    // Remember those (failed) (typ/html) files, an attempt will be made to load them next time
+    pub fn retry_next_time(&self, path: &Path) {
+        let mut hash_path = path.to_path_buf();
+        hash_path.add_extension("hash");
+        let retry_path = self.retry_path.join(&hash_path);
+        let hash_path = self.hash_path.join(&hash_path);
+        copy_file(hash_path, retry_path).unwrap_or_else(|err| eprintln!("{err}"));
     }
 
     pub fn remove_retry_hash(&self, path: &Path) {
-        let path = self
-            .retry_path
-            .join(self.html_cache_path.join(path))
-            .with_extension("html.hash");
+        let mut path = self.retry_path.join(path);
+        path.add_extension("hash");
         remove_file_ignore(path);
     }
 
-    pub fn retry(&self) -> PathBufs {
-        walk_glob!("{}/**/*.html.hash", self.retry_path.display())
+    
+    pub fn retry_typsts(&self) -> PathBufs {
+        self.retry("typ")
+    }
+
+    pub fn retry_htmls(&self) -> PathBufs {
+        self.retry("html")
+    }
+    fn retry(&self,ext:&str) -> PathBufs {
+        walk_glob!("{}/**/*.{ext}.hash", self.retry_path.display())
             .par_bridge()
             .map(|path| -> Result<PathBuf> {
                 let path = relative_path(&self.retry_path, &path)

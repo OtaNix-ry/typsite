@@ -99,6 +99,7 @@ impl Compiler {
             deleted_non_typst,
             changed_assets,
             deleted_assets,
+            retry_typst_paths,
             retry_html_paths,
             overall_compile_needed,
             ..
@@ -112,6 +113,7 @@ impl Compiler {
         if overall_compile_needed {
             registry.register_paths(&config, changed_typst_paths.iter());
         }
+        registry.register_paths(&config, retry_typst_paths.iter());
         registry.register_paths(&config, retry_html_paths.iter());
 
         let error_cache_articles = article_cache.load(&config, &deleted_typst_paths, &mut registry);
@@ -122,9 +124,11 @@ impl Compiler {
         // Only compile updated typst files into html
         let error_typst_articles = compile_typsts(
             &config,
+            &mut monitor,
             &self.typst_path,
             &self.html_cache_path,
             &changed_typst_paths,
+            retry_typst_paths
         );
 
         let mut changed_html_paths =

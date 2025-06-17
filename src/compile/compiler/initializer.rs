@@ -5,10 +5,7 @@ use crate::{
     util::path::file_ext,
 };
 use anyhow::*;
-use std::{
-    collections::HashSet,
-    path::Path,
-};
+use std::{collections::HashSet, path::Path};
 
 pub struct Input<'a> {
     pub monitor: Monitor<'a>,
@@ -21,6 +18,7 @@ pub struct Input<'a> {
     pub deleted_non_typst: PathBufs,
     pub changed_assets: PathBufs,
     pub deleted_assets: PathBufs,
+    pub retry_typst_paths: PathBufs,
     pub retry_html_paths: PathBufs,
     pub overall_compile_needed: bool,
 }
@@ -46,7 +44,8 @@ pub fn initialize<'a>(
     let (changed_non_typst, deleted_non_typst) = monitor.refresh_non_typst()?;
 
     // Get retry paths
-    let retry_paths = monitor.retry();
+    let retry_typst_paths = monitor.retry_typsts();
+    let retry_html_paths = monitor.retry_htmls();
 
     let config = TypsiteConfig::load(config_path, typst_path, html_cache_path).context(format!(
         "Loading '{config_path:?}' failed, try to init Typsite first by: typsite init"
@@ -105,11 +104,13 @@ pub fn initialize<'a>(
     retain_lib_paths(typst_path, &mut deleted_typst_paths, lib_paths);
     let changed_assets = changed_config_paths
         .iter()
-        .filter(|path| path.starts_with(assets_path) && file_ext(path) != Some("html".to_string())).cloned()
+        .filter(|path| path.starts_with(assets_path) && file_ext(path) != Some("html".to_string()))
+        .cloned()
         .collect();
     let deleted_assets = deleted_config_paths
         .iter()
-        .filter(|path| path.starts_with(assets_path) && file_ext(path) != Some("html".to_string())).cloned()
+        .filter(|path| path.starts_with(assets_path) && file_ext(path) != Some("html".to_string()))
+        .cloned()
         .collect();
     let input = Input {
         monitor,
@@ -122,7 +123,8 @@ pub fn initialize<'a>(
         deleted_non_typst,
         changed_assets,
         deleted_assets,
-        retry_html_paths: retry_paths,
+        retry_typst_paths,
+        retry_html_paths,
         overall_compile_needed,
     };
     Ok(input)
@@ -137,7 +139,7 @@ impl<'a> Input<'a> {
             && self.changed_non_typst.is_empty()
             && self.deleted_non_typst.is_empty()
             // In watch mode, ignore `retry_html_paths` when determining if a file is `unchanged`
-            && ( compile_options().unwrap().watch || self.retry_html_paths.is_empty() )
+            && ( compile_options().unwrap().watch || (self.retry_html_paths.is_empty() && self.retry_typst_paths.is_empty()) )
     }
 }
 
