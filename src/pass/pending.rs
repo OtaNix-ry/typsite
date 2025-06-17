@@ -49,7 +49,7 @@ impl<'c, 'b: 'c, 'a: 'b> PendingPass<'a, 'b, 'c> {
             .iter()
             .map(|(pos, &body_index)| {
                 let pos = pos.clone();
-                let anchor = pos_slug(&pos, self.slug.as_str());
+                let anchor = self.slug.to_string();
                 BodyNumberingData::new(pos, anchor, body_index)
             })
             .collect()
@@ -63,7 +63,7 @@ impl<'c, 'b: 'c, 'a: 'b> PendingPass<'a, 'b, 'c> {
             .iter()
             .map(|(pos, index)| {
                 let pos = pos.clone();
-                let anchor = pos_slug(&pos, self.slug.as_str());
+                let anchor = self.slug.to_string();
                 SidebarNumberingData::new(pos, anchor, index.clone())
             })
             .collect()

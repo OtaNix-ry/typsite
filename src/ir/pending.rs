@@ -33,7 +33,7 @@ impl BodyNumberingData {
         style: HeadingNumberingStyle,
         body: &mut [String],
     ) {
-        let numbering = config.get(style, base, &self.pos, self.anchor.as_str());
+        let numbering = config.get_with_pos_anchor(style, base, &self.pos, self.anchor.as_str());
         body[self.body_index] = numbering.clone();
     }
 }
@@ -95,7 +95,7 @@ impl SidebarNumberingData {
         style: HeadingNumberingStyle,
         sidebar: &mut [String],
     ) {
-        let numbering = config.get(style, base, &self.pos, self.anchor.as_str());
+        let numbering = config.get_with_pos_anchor(style, base, &self.pos, self.anchor.as_str());
         for &index in &self.sidebar_indexes {
             sidebar[index] = numbering.clone();
         }
@@ -202,11 +202,6 @@ impl<'c> EmbedData<'c> {
         sidebar: &mut [String],
         sidebar_type: SidebarType,
     ) {
-        // let empty_pos = vec![];
-        // let (base, pos) = match &self.section_type {
-        //     SectionType::None => (None, &empty_pos),
-        //     _ => (base, &self.pos),
-        // };
         let pos = &self.pos;
         let metadata = global_data.metadata(self.slug.as_str()).unwrap();
 
@@ -354,12 +349,21 @@ impl<'c> Pending<'c> {
         for numbering_in_body in &self.body_numberings {
             numbering_in_body.based_on(&config.heading_numbering, base, style, &mut body);
         }
-        let (data,sidebar) = match sidebar_type {
+        for anchor in self.anchors {
+            anchor.based_on(&config.anchor, base, &mut body);
+        }
+        let (data, sidebar) = match sidebar_type {
             SidebarType::All => (&self.full_sidebar_data, &mut full_sidebar),
             SidebarType::OnlyEmbed => (&self.embed_sidebar_data, &mut embed_sidebar),
         };
 
-        data.based_on(&config.heading_numbering, base, section_type, style, sidebar);
+        data.based_on(
+            &config.heading_numbering,
+            base,
+            section_type,
+            style,
+            sidebar,
+        );
 
         for embed in &self.embeds {
             embed.based_on(
@@ -371,10 +375,6 @@ impl<'c> Pending<'c> {
                 sidebar,
                 sidebar_type,
             );
-        }
-
-        for anchor in self.anchors {
-            anchor.based_on(&config.anchor, base, &mut body);
         }
 
         (body, full_sidebar, embed_sidebar)
