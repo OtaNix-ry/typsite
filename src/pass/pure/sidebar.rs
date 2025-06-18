@@ -145,7 +145,7 @@ struct SidebarBuilder {
 }
 
 impl SidebarBuilder {
-    fn build(self, config: &SidebarConfig) -> SidebarData {
+    fn build(self, config: &SidebarConfig) -> SidebarData<'_> {
         SidebarData::build(config, self.sections)
     }
 
@@ -302,7 +302,7 @@ impl PureSidebarBuilder {
         (full_sidebar_index, only_embed_index)
     }
 
-    pub fn build(self, config: &SidebarConfig) -> (SidebarData, SidebarData) {
+    pub fn build(self, config: &SidebarConfig) -> (SidebarData<'_>, SidebarData<'_>) {
         let full_sidebar = self.full_sidebar.build(config);
         let only_embed_sidebar = self.only_embed_sidebar.build(config);
         (full_sidebar, only_embed_sidebar)
