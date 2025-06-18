@@ -29,11 +29,18 @@ impl BodyNumberingData {
     fn based_on(
         &self,
         config: &HeadingNumberingConfig,
-        base: Option<&Pos>,
+        base_anchor: Option<&Pos>,
+        base_numbering: Option<&Pos>,
         style: HeadingNumberingStyle,
         body: &mut [String],
     ) {
-        let numbering = config.get_with_pos_anchor(style, base, &self.pos, self.anchor.as_str());
+        let numbering = config.get_with_pos_anchor(
+            style,
+            base_anchor,
+            base_numbering,
+            &self.pos,
+            self.anchor.as_str(),
+        );
         body[self.body_index] = numbering.clone();
     }
 }
@@ -48,17 +55,18 @@ impl SidebarData {
     fn based_on(
         &self,
         config: &HeadingNumberingConfig,
-        base: Option<&Pos>,
+        base_anchor: Option<&Pos>,
+        base_numbering: Option<&Pos>,
         section_type: SectionType,
         style: HeadingNumberingStyle,
         sidebar: &mut [String],
     ) {
         self.indexes.based_on(section_type, sidebar);
         for numbering in self.numberings.iter() {
-            numbering.based_on(config, base, style, sidebar);
+            numbering.based_on(config, base_anchor, base_numbering, style, sidebar);
         }
         for anchor in self.anchors.iter() {
-            anchor.based_on(base, sidebar);
+            anchor.based_on(base_anchor, sidebar);
         }
     }
 
@@ -91,11 +99,12 @@ impl SidebarNumberingData {
     fn based_on(
         &self,
         config: &HeadingNumberingConfig,
-        base: Option<&Pos>,
+        base_anchor: Option<&Pos>,
+        base_numbering: Option<&Pos>,
         style: HeadingNumberingStyle,
         sidebar: &mut [String],
     ) {
-        let numbering = config.get_with_pos_anchor(style, base, &self.pos, self.anchor.as_str());
+        let numbering = config.get_with_pos_anchor(style, base_anchor,base_numbering, &self.pos, self.anchor.as_str());
         for &index in &self.sidebar_indexes {
             sidebar[index] = numbering.clone();
         }
@@ -114,9 +123,13 @@ impl SidebarAnchorData {
             sidebar_indexes,
         }
     }
-    fn based_on(&self, base: Option<&Pos>, sidebar: &mut [String]) {
-        let pos = pos_base_on(base, &self.pos);
-        let anchor = pos_slug(&pos, &self.anchor);
+    fn based_on(
+        &self,
+        base_anchor: Option<&Pos>,
+        sidebar: &mut [String],
+    ) {
+        let pos_anchor = pos_base_on(base_anchor, Some(&self.pos));
+        let anchor = pos_slug(&pos_anchor, &self.anchor);
         for &index in &self.sidebar_indexes {
             sidebar[index] = anchor.clone();
         }
@@ -155,12 +168,6 @@ pub struct EmbedData<'c> {
     pub section_type: SectionType,
 }
 
-fn combine(base: &Pos, pos: &Pos) -> Pos {
-    let mut combined = base.clone();
-    combined.extend(pos.iter());
-    combined
-}
-
 impl<'c> EmbedData<'c> {
     pub fn new(
         pos: Pos,
@@ -196,29 +203,42 @@ impl<'c> EmbedData<'c> {
         &self,
         config: &TypsiteConfig,
         global_data: &'c GlobalData<'_, '_, 'c>,
-        base: Option<&Pos>,
-        style: HeadingNumberingStyle,
+        base_anchor: Option<&Pos>,
+        base_numbering: Option<&Pos>,
+        parent_style: HeadingNumberingStyle,
         body: &mut [String],
         sidebar: &mut [String],
         sidebar_type: SidebarType,
     ) {
         let pos = &self.pos;
         let metadata = global_data.metadata(self.slug.as_str()).unwrap();
+        let numbering = config.heading_numbering.get_with_pos_anchor(
+            parent_style,
+            base_anchor,
+            base_numbering,
+            pos,
+            &self.slug,
+        ); // also as anchor
 
         let mut embed_article_body = Vec::new();
         let mut embed_article_sidebar = String::new();
 
-        let numbering = config
-            .heading_numbering
-            .get_with_pos_anchor(style, base, pos, &self.slug); // also as anchor
         let embed_config = &config.embed.embed;
 
-        let base = base.map(|base| combine(base, pos));
+        let pos_anchor = Some(pos);
+        let pos_numebring = match parent_style {
+            HeadingNumberingStyle::None => None,
+            _ => Some(pos),
+        };
+
+        let base_anchor = Some(pos_base_on(base_anchor, pos_anchor));
+        let base_numbering = Some(pos_base_on(base_numbering, pos_numebring));
+
         let (body_vec, mut full_sidebar_vec, mut embed_sidebar_vec) = self.pending.based_on(
             config,
             global_data,
-            base.as_ref(),
-            Some(style),
+            base_anchor.as_ref(),
+            base_numbering.as_ref(),
             sidebar_type,
             self.section_type,
         );
@@ -309,6 +329,7 @@ impl AnchorData {
 pub struct Pending<'c> {
     // body, sidebar
     pub raw: &'c (Vec<String>, Vec<String>, Vec<String>),
+    pub style: HeadingNumberingStyle,
     pub body_numberings: Vec<BodyNumberingData>,
     pub full_sidebar_data: SidebarData,
     pub embed_sidebar_data: SidebarData,
@@ -319,6 +340,7 @@ pub struct Pending<'c> {
 impl<'c> Pending<'c> {
     pub fn new(
         raw: &'c (Vec<String>, Vec<String>, Vec<String>),
+        style: HeadingNumberingStyle,
         body_numberings: Vec<BodyNumberingData>,
         full_sidebar_data: SidebarData,
         embed_sidebar_data: SidebarData,
@@ -327,6 +349,7 @@ impl<'c> Pending<'c> {
     ) -> Self {
         Self {
             raw,
+            style,
             body_numberings,
             full_sidebar_data,
             embed_sidebar_data,
@@ -338,19 +361,25 @@ impl<'c> Pending<'c> {
         &self,
         config: &TypsiteConfig,
         global_data: &'c GlobalData<'_, '_, 'c>,
-        base: Option<&Pos>,
-        style: Option<HeadingNumberingStyle>,
+        base_anchor: Option<&Pos>,
+        base_numbering: Option<&Pos>,
         sidebar_type: SidebarType,
         section_type: SectionType,
     ) -> (Vec<String>, Vec<String>, Vec<String>) {
         let (mut body, mut full_sidebar, mut embed_sidebar) = self.raw.clone();
-        let style = style.unwrap_or_default();
+        let style = self.style;
 
         for numbering_in_body in &self.body_numberings {
-            numbering_in_body.based_on(&config.heading_numbering, base, style, &mut body);
+            numbering_in_body.based_on(
+                &config.heading_numbering,
+                base_anchor,
+                base_numbering,
+                style,
+                &mut body,
+            );
         }
         for anchor in self.anchors {
-            anchor.based_on(&config.anchor, base, &mut body);
+            anchor.based_on(&config.anchor, base_anchor, &mut body);
         }
         let (data, sidebar) = match sidebar_type {
             SidebarType::All => (&self.full_sidebar_data, &mut full_sidebar),
@@ -359,7 +388,8 @@ impl<'c> Pending<'c> {
 
         data.based_on(
             &config.heading_numbering,
-            base,
+            base_anchor,
+            base_numbering,
             section_type,
             style,
             sidebar,
@@ -369,7 +399,8 @@ impl<'c> Pending<'c> {
             embed.based_on(
                 config,
                 global_data,
-                base,
+                base_anchor,
+                base_numbering,
                 style,
                 &mut body,
                 sidebar,

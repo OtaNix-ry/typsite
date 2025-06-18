@@ -4,9 +4,9 @@ use crate::ir::article::dep::Indexes;
 use crate::ir::article::sidebar::{Pos, Sidebar, SidebarIndexes};
 use crate::ir::embed::Embed;
 use crate::ir::pending::{
-    BodyNumberingData, EmbedData, Pending, SidebarAnchorData, SidebarData, SidebarNumberingData, SidebarIndexesData
+    BodyNumberingData, EmbedData, Pending, SidebarAnchorData, SidebarData, SidebarIndexesData,
+    SidebarNumberingData,
 };
-use crate::util::pos_slug;
 use std::collections::HashMap;
 
 pub struct PendingPass<'a, 'b, 'c> {
@@ -81,24 +81,14 @@ impl<'c, 'b: 'c, 'a: 'b> PendingPass<'a, 'b, 'c> {
             })
             .collect()
     }
-    fn emit_sidebar_indexes(
-        &self,
-        sidebar_show_children: &SidebarIndexes,
-    ) -> SidebarIndexesData {
+    fn emit_sidebar_indexes(&self, sidebar_show_children: &SidebarIndexes) -> SidebarIndexesData {
         SidebarIndexesData::new(sidebar_show_children.clone())
     }
-    fn emit_sidebar(
-        &self,
-        sidebar: &Sidebar
-    ) -> SidebarData {
+    fn emit_sidebar(&self, sidebar: &Sidebar) -> SidebarData {
         let indexes = self.emit_sidebar_indexes(sidebar.indexes());
         let numberings = self.emit_sidebar_numberings(sidebar.numberings());
         let anchors = self.emit_sidebar_anchors(sidebar.anchors());
-        SidebarData::new(
-            indexes,
-            numberings,
-            anchors
-        )
+        SidebarData::new(indexes, numberings, anchors)
     }
 
     fn emit_embed(&self, embed: &Embed) -> Option<EmbedData<'c>> {
@@ -147,6 +137,7 @@ impl<'c, 'b: 'c, 'a: 'b> PendingPass<'a, 'b, 'c> {
         content: &'c (Vec<String>, Vec<String>, Vec<String>),
     ) -> Pending<'c> {
         let article = self.global_data.article(self.slug.as_str()).unwrap();
+        let style = article.get_meta_options().heading_numbering_style;
         let body_numberings = self.emit_body_numberings(&article.get_body().numberings);
         let full_sidebar = article.get_full_sidebar();
         let embed_sidebar = article.get_embed_sidebar();
@@ -156,6 +147,7 @@ impl<'c, 'b: 'c, 'a: 'b> PendingPass<'a, 'b, 'c> {
         let anchors = article.get_anchors();
         Pending::new(
             content,
+            style,
             body_numberings,
             full_sidebar_data,
             embed_sidebar_data,

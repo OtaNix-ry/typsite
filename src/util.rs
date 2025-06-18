@@ -19,13 +19,15 @@ pub fn pos_slug(pos: &[usize], slug: &str) -> String {
     format!("{}-{}", &slug[1..], pos)
 }
 
-pub fn pos_base_on(base: Option<&Pos>, pos: &Pos) -> Pos {
+pub fn pos_base_on(base: Option<&Pos>, pos: Option<&Pos>) -> Pos {
     match base {
         Some(base) => {
             let mut result = base.clone();
-            result.extend(pos);
+            if let Some(pos) = pos {
+                result.extend(pos);
+            }
             result
         }
-        None => Pos::new(),
+        None => pos.cloned().unwrap_or_default(),
     }
 }
