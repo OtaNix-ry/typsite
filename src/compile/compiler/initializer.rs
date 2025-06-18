@@ -41,7 +41,7 @@ pub fn initialize<'a>(
     let (changed_config_paths, deleted_config_paths) = monitor.refresh_config()?;
 
     // Get updated and deleted non-typst files
-    let (changed_non_typst, deleted_non_typst) = monitor.refresh_non_typst()?;
+    let (mut changed_non_typst, mut deleted_non_typst) = monitor.refresh_non_typst()?;
 
     // Get retry paths
     let retry_typst_paths = monitor.retry_typsts();
@@ -110,6 +110,9 @@ pub fn initialize<'a>(
     }
     retain_lib_paths(typst_path, &mut changed_typst_paths, lib_files, lib_dirs);
     retain_lib_paths(typst_path, &mut deleted_typst_paths, lib_files, lib_dirs);
+    retain_lib_paths(typst_path, &mut changed_non_typst, lib_files, lib_dirs);
+    retain_lib_paths(typst_path, &mut deleted_non_typst, lib_files, lib_dirs);
+
     let changed_assets = changed_config_paths
         .iter()
         .filter(|path| path.starts_with(assets_path) && file_ext(path) != Some("html".to_string()))

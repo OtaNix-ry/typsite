@@ -171,7 +171,7 @@ impl<'c, 'b: 'c, 'a: 'b> Article<'a> {
         global_data.get_pending_or_init(self)
     }
 
-    pub fn get_body(&self) -> &Body {
+    pub fn get_body(&self) -> &Body<'a> {
         &self.body
     }
 

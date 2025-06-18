@@ -156,10 +156,10 @@ mod lib_paths {
         let mut dirs = HashSet::new();
 
         for path in raw.paths {
-            if path.to_lowercase().ends_with(".typ") {
-                files.insert(path);
-            } else {
+            if path.to_lowercase().ends_with("/") {
                 dirs.insert(path);
+            } else {
+                files.insert(path);
             }
         }
 
