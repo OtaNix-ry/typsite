@@ -11,13 +11,12 @@ use crate::pass::pass_schema;
 use anyhow::*;
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, OnceLock};
 use std::result::Result::Ok;
+use std::sync::{Arc, OnceLock};
 
-use super::{analyse_slugs_to_update_and_load, ErrorArticles, UpdatedPages, PathBufs};
+use super::{ErrorArticles, PathBufs, UpdatedPages, analyse_slugs_to_update_and_load};
 
 pub type PageCache = HashMap<Key, (Vec<String>, Vec<String>, Vec<String>)>;
-
 
 pub struct PageData<'a> {
     pub cache: PageCache,
@@ -108,6 +107,7 @@ pub fn compose_pages<'c, 'b: 'c, 'a: 'b>(
             let (content, full_sidebar, embed_sidebar) = pending.based_on(
                 config,
                 &global_data,
+                Some(&empty_pos),
                 Some(&empty_pos),
                 article.get_meta_options().sidebar_type,
                 SectionType::Full,

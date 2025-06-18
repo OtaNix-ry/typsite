@@ -7,7 +7,6 @@ use crate::ir::pending::{
     BodyNumberingData, EmbedData, Pending, SidebarAnchorData, SidebarData, SidebarIndexesData,
     SidebarNumberingData,
 };
-use crate::util::pos_slug;
 use std::collections::HashMap;
 
 pub struct PendingPass<'a, 'b, 'c> {

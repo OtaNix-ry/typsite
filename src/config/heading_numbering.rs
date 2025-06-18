@@ -18,31 +18,18 @@ impl HeadingNumberingConfig {
         let Html { head, body } = Html::load(&path)?;
         Ok(Self { path, head, body })
     }
-
-    // pub fn get(
-    //     &self,
-    //     style: HeadingNumberingStyle,
-    //     base: Option<&Pos>,
-    //     pos: &Pos,
-    //     anchor: &str,
-    // ) -> String {
-    //     let result = pos_base_on(base, pos);
-    //     let numbering = style.display(&result);
-    //     ac_replace(
-    //         self.body.as_str(),
-    //         &[("{numbering}", &numbering), ("{anchor}", anchor)],
-    //     )
-    // }
     pub fn get_with_pos_anchor(
         &self,
         style: HeadingNumberingStyle,
-        base: Option<&Pos>,
+        base_anchor: Option<&Pos>,
+        base_numbering: Option<&Pos>,
         pos: &Pos,
         anchor: &str,
     ) -> String {
-        let pos = pos_base_on(base, pos);
-        let anchor = pos_slug(&pos, anchor);
-        let numbering = style.display(&pos);
+        let pos_anchor = pos_base_on(base_anchor, Some(pos));
+        let pos_numbering = pos_base_on(base_numbering, Some(pos));
+        let anchor = pos_slug(&pos_anchor, anchor);
+        let numbering = style.display(&pos_numbering);
 
         ac_replace(
             self.body.as_str(),
