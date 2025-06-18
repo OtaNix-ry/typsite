@@ -112,6 +112,7 @@ pub fn initialize<'a>(
     retain_lib_paths(typst_path, &mut deleted_typst_paths, lib_files, lib_dirs);
     retain_lib_paths(typst_path, &mut changed_non_typst, lib_files, lib_dirs);
     retain_lib_paths(typst_path, &mut deleted_non_typst, lib_files, lib_dirs);
+
     let changed_assets = changed_config_paths
         .iter()
         .filter(|path| path.starts_with(assets_path) && file_ext(path) != Some("html".to_string()))
