@@ -14,13 +14,15 @@ pub const OPTIONS_PATH: &str = "options.toml";
 #[derive(Debug, Deserialize)]
 pub struct ProjOptions {
     pub default_metadata: DefaultMetadata,
+    #[serde(deserialize_with = "lib_paths::deserialize_lib_paths")]
     pub typst_lib: TypstLib,
     pub code_fallback_style: CodeFallbackStyle,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct TypstLib {
-    pub paths: HashSet<String>,
+    pub files: HashSet<String>,
+    pub dirs: HashSet<String>,
 }
 #[derive(Debug, Deserialize)]
 pub struct DefaultMetadata {
@@ -43,7 +45,9 @@ pub struct CodeFallbackStyle {
 }
 pub mod metadata {
     use crate::{
-        compile::{proj_options, registry::Key}, config::TypsiteConfig, ir::article::sidebar::{HeadingNumberingStyle, SidebarType}
+        compile::{proj_options, registry::Key},
+        config::TypsiteConfig,
+        ir::article::sidebar::{HeadingNumberingStyle, SidebarType},
     };
     use serde::{Deserialize, Serialize};
     use std::{
@@ -80,7 +84,7 @@ pub mod metadata {
     impl Graph {
         pub fn default_parent_slug(
             &self,
-            config:&TypsiteConfig,
+            config: &TypsiteConfig,
             verify_slug: impl FnOnce(String) -> Option<Key>,
         ) -> Option<Key> {
             self.default_parent_slug
@@ -127,5 +131,38 @@ pub mod metadata {
             .map(|(key, value)| (key, Arc::from(value)))
             .collect::<HashMap<String, Arc<str>>>();
         Ok(map)
+    }
+}
+
+mod lib_paths {
+
+    use std::collections::HashSet;
+
+    use serde::{Deserialize, Deserializer};
+
+    use super::TypstLib;
+
+    #[derive(Deserialize)]
+    struct RawTypstLib {
+        paths: Vec<String>,
+    }
+
+    pub fn deserialize_lib_paths<'de, D>(deserializer: D) -> Result<TypstLib, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = RawTypstLib::deserialize(deserializer)?;
+        let mut files = HashSet::new();
+        let mut dirs = HashSet::new();
+
+        for path in raw.paths {
+            if path.to_lowercase().ends_with("/") {
+                dirs.insert(path);
+            } else {
+                files.insert(path);
+            }
+        }
+
+        Ok(TypstLib { files, dirs })
     }
 }
