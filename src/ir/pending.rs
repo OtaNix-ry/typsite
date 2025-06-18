@@ -197,7 +197,7 @@ impl<'c> EmbedData<'c> {
         config: &TypsiteConfig,
         global_data: &'c GlobalData<'_, '_, 'c>,
         base: Option<&Pos>,
-        style: HeadingNumberingStyle,
+        parent_style: HeadingNumberingStyle,
         body: &mut [String],
         sidebar: &mut [String],
         sidebar_type: SidebarType,
@@ -210,7 +210,7 @@ impl<'c> EmbedData<'c> {
 
         let numbering = config
             .heading_numbering
-            .get_with_pos_anchor(style, base, pos, &self.slug); // also as anchor
+            .get_with_pos_anchor(parent_style, base, pos, &self.slug); // also as anchor
         let embed_config = &config.embed.embed;
 
         let base = base.map(|base| combine(base, pos));
@@ -218,7 +218,6 @@ impl<'c> EmbedData<'c> {
             config,
             global_data,
             base.as_ref(),
-            Some(style),
             sidebar_type,
             self.section_type,
         );
@@ -309,6 +308,7 @@ impl AnchorData {
 pub struct Pending<'c> {
     // body, sidebar
     pub raw: &'c (Vec<String>, Vec<String>, Vec<String>),
+    pub style: HeadingNumberingStyle,
     pub body_numberings: Vec<BodyNumberingData>,
     pub full_sidebar_data: SidebarData,
     pub embed_sidebar_data: SidebarData,
@@ -319,6 +319,7 @@ pub struct Pending<'c> {
 impl<'c> Pending<'c> {
     pub fn new(
         raw: &'c (Vec<String>, Vec<String>, Vec<String>),
+        style: HeadingNumberingStyle,
         body_numberings: Vec<BodyNumberingData>,
         full_sidebar_data: SidebarData,
         embed_sidebar_data: SidebarData,
@@ -327,6 +328,7 @@ impl<'c> Pending<'c> {
     ) -> Self {
         Self {
             raw,
+            style,
             body_numberings,
             full_sidebar_data,
             embed_sidebar_data,
@@ -339,12 +341,11 @@ impl<'c> Pending<'c> {
         config: &TypsiteConfig,
         global_data: &'c GlobalData<'_, '_, 'c>,
         base: Option<&Pos>,
-        style: Option<HeadingNumberingStyle>,
         sidebar_type: SidebarType,
         section_type: SectionType,
     ) -> (Vec<String>, Vec<String>, Vec<String>) {
         let (mut body, mut full_sidebar, mut embed_sidebar) = self.raw.clone();
-        let style = style.unwrap_or_default();
+        let style = self.style;
 
         for numbering_in_body in &self.body_numberings {
             numbering_in_body.based_on(&config.heading_numbering, base, style, &mut body);

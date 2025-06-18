@@ -109,7 +109,6 @@ pub fn compose_pages<'c, 'b: 'c, 'a: 'b>(
                 config,
                 &global_data,
                 Some(&empty_pos),
-                Some(article.get_meta_options().heading_numbering_style),
                 article.get_meta_options().sidebar_type,
                 SectionType::Full,
             );
