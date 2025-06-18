@@ -72,14 +72,16 @@ pub fn initialize<'a>(
     if components_changed {
         println!("Components changed, reloading...");
     }
-    let lib_paths = &proj_options()?.typst_lib.paths;
+    let lib_files = &proj_options()?.typst_lib.files;
+    let lib_dirs = &proj_options()?.typst_lib.dirs;
     let libs_changed = changed_typst_paths
         .iter()
         .chain(deleted_typst_paths.iter())
         .filter_map(|path| path.strip_prefix(typst_path).ok())
         .any(|path| {
             let path = path.to_string_lossy();
-            lib_paths.contains(path.as_str())
+            lib_files.contains(path.as_str())
+                || lib_dirs.iter().any(|prefix| path.starts_with(prefix))
         });
 
     if libs_changed {
@@ -94,14 +96,20 @@ pub fn initialize<'a>(
     }
 
     // Remove lib paths from changed and deleted typst paths
-    fn retain_lib_paths(typst_path: &Path, paths: &mut PathBufs, lib_paths: &HashSet<String>) {
+    fn retain_lib_paths(
+        typst_path: &Path,
+        paths: &mut PathBufs,
+        lib_files: &HashSet<String>,
+        lib_dirs: &HashSet<String>,
+    ) {
         paths.retain(|path| {
             let path = path.strip_prefix(typst_path).unwrap();
-            !lib_paths.contains(path.to_string_lossy().as_ref())
+            !(lib_files.contains(path.to_string_lossy().as_ref())
+                || lib_dirs.iter().any(|prefix| path.starts_with(prefix)))
         });
     }
-    retain_lib_paths(typst_path, &mut changed_typst_paths, lib_paths);
-    retain_lib_paths(typst_path, &mut deleted_typst_paths, lib_paths);
+    retain_lib_paths(typst_path, &mut changed_typst_paths, lib_files, lib_dirs);
+    retain_lib_paths(typst_path, &mut deleted_typst_paths, lib_files, lib_dirs);
     let changed_assets = changed_config_paths
         .iter()
         .filter(|path| path.starts_with(assets_path) && file_ext(path) != Some("html".to_string()))
