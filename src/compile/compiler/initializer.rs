@@ -77,6 +77,8 @@ pub fn initialize<'a>(
     let libs_changed = changed_typst_paths
         .iter()
         .chain(deleted_typst_paths.iter())
+        .chain(changed_non_typst.iter())
+        .chain(deleted_non_typst.iter())
         .filter_map(|path| path.strip_prefix(typst_path).ok())
         .any(|path| {
             let path = path.to_string_lossy();
