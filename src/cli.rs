@@ -1,10 +1,10 @@
-use std::{fs, process::exit};
+use std::{env, fs, process::exit};
 
-use crate::compile::compiler::Compiler;
+use crate::{compile::compiler::Compiler, util::path::verify_if_relative_path};
 use crate::compile::options::CompileOptions;
 use crate::config::highlight::CodeHightlightConfig;
 use crate::config::resources::copy_default_typsite;
-use anyhow::{Context,Result};
+use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::Path;
 
@@ -44,14 +44,23 @@ impl Executor {
 
     fn build_compiler(cmd: CompileCmd) -> Result<Compiler> {
         println!("Preparing compiler...");
-        let cache_path = Path::new(cmd.cache.as_str()).to_path_buf();
-        let config_path = Path::new(cmd.config.as_str()).to_path_buf();
-        let input_path = Path::new(cmd.input.as_str()).to_path_buf();
-        let output_path = Path::new(cmd.output.as_str()).to_path_buf();
+        let cwd = env::current_dir().context("Failed to get current work dir")?;
+        let cache_path = Path::new(cmd.cache.as_str());
+        let config_path = Path::new(cmd.config.as_str());
+        let input_path = Path::new(cmd.input.as_str());
+        let output_path = Path::new(cmd.output.as_str());
+
+        let cache_path = verify_if_relative_path(&cwd, cache_path)?;
+        let config_path = verify_if_relative_path(&cwd, config_path)?;
+        let input_path = verify_if_relative_path(&cwd, input_path)?;
+        let output_path = verify_if_relative_path(&cwd, output_path)?;
+
         println!("  - Cache dir: {cache_path:?}");
         println!("  - Config dir: {config_path:?}");
         println!("  - Input dir: {input_path:?}");
         println!("  - Output dir: {output_path:?}");
+
+
         let config = CompileOptions {
             watch: cmd.port != 0,
             short_slug: !cmd.no_short_slug,
