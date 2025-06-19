@@ -135,6 +135,7 @@ impl<'ce> Deserialize<'ce> for Attributes {
 pub struct OutputHead<'a> {
     start: String,
     head: Vec<&'a str>,
+    end: String,
 }
 
 impl<'a> OutputHead<'a> {
@@ -142,11 +143,15 @@ impl<'a> OutputHead<'a> {
         Self {
             start: String::new(),
             head: Vec::new(),
+            end: String::new(),
         }
     }
 
     pub fn start(&mut self, start: String) {
         self.start = start;
+    }
+    pub fn end(&mut self, end: String) {
+        self.end = end;
     }
 
     pub fn extend(&mut self, head: &OutputHead<'a>) {
@@ -159,6 +164,10 @@ impl<'a> OutputHead<'a> {
                 self.head.push(h.trim());
             }
         }
+        if !head.end.is_empty() {
+            self.end.push('\n');
+            self.end.push_str(head.end.trim());
+        }
     }
     pub fn push(&mut self, head: &'a str) {
         if self.head.contains(&head) {
@@ -170,6 +179,7 @@ impl<'a> OutputHead<'a> {
     pub fn to_html(&self) -> String {
         let mut vec = vec![self.start.as_str()];
         vec.extend(self.head.iter());
+        vec.push(self.end.as_str());
         let head: String = vec
             .iter()
             .map(|it| format!("  {}", it.trim()))

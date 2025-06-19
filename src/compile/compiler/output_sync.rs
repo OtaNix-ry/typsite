@@ -1,7 +1,7 @@
 use super::cache::monitor::Monitor;
 use super::{ErrorArticles, PathBufs, UpdatedPages};
 use crate::util::error::log_err;
-use crate::util::fs::{remove_file, remove_file_ignore, write_into_file};
+use crate::util::fs::{remove_file, write_into_file};
 use crate::util::path::relative_path;
 use anyhow::{Ok, *};
 use rayon::prelude::*;

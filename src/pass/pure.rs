@@ -212,6 +212,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
             Self::handle_head_start_tag,
             Self::handle_head_end_tag,
         )?;
+        self.push_head_buffer();
         self.visit_tag_block(
             &mut tokenizer,
             "body",
@@ -219,7 +220,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
             Self::handle_body_start_tag,
             Self::handle_body_end_tag,
         )?;
-        self.push_buffer();
+        self.push_body_buffer();
         while let Some(level) = self.heading_level_backtrace.pop() {
             self.push_section_end(level);
         }
@@ -308,7 +309,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
     }
 
     fn add_anchor(&mut self, kind: AnchorKind, id: String) {
-        self.push_buffer();
+        self.push_body_buffer();
         let anchor = self.config.anchor.get(kind, None, id.as_str());
         self.push_plain(anchor);
         let index = self.body.body_index();
@@ -393,7 +394,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
                 self.add_anchor(AnchorKind::GotoHead, id);
             }
             BodyTag::AnchorDef { id } => {
-                self.push_buffer();
+                self.push_body_buffer();
                 self.add_anchor(AnchorKind::Define, id);
             }
 
@@ -420,16 +421,16 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
                 self.push_rewriter_end(tag_name, rule)?;
             }
             BodyTag::MetaContentSet { .. } if self.metadata.meta_key.is_some() => {
-                self.push_buffer();
+                self.push_body_buffer();
                 let plain_buffer = std::mem::take(&mut self.content_buffer);
                 self.metadata.emit_metacontent_end(plain_buffer);
             }
             BodyTag::AnchorGoto { id } => {
-                self.push_buffer();
+                self.push_body_buffer();
                 self.add_anchor(AnchorKind::GotoTail, id.to_string());
             }
             BodyTag::Section { heading_level } => {
-                self.push_buffer();
+                self.push_body_buffer();
                 self.sidebar_pos = None;
                 self.push_section_start(heading_level);
                 let buffer = std::mem::take(&mut self.content_buffer);
@@ -497,8 +498,15 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         }
         false
     }
+    fn push_head_buffer(&mut self) {
+        if self.buffer.is_empty() {
+            return;
+        }
+        let head = std::mem::take(&mut self.buffer);
+        self.head = head;
+    }
 
-    fn push_buffer(&mut self) {
+    fn push_body_buffer(&mut self) {
         if self.buffer.is_empty() {
             return;
         }
@@ -518,7 +526,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
     }
 
     fn push_plain(&mut self, plain: String) {
-        self.push_buffer();
+        self.push_body_buffer();
         if self.push_meta_or_sidebar_plain(plain.as_str()) {
             return;
         }
@@ -534,7 +542,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
     where
         F: FnOnce(HashMap<String, String>, Option<(Pos, usize)>, usize) -> RewriterBuilder<'a>,
     {
-        self.push_buffer();
+        self.push_body_buffer();
         let sidebar_pos = self.sidebar_pos.clone();
         let index = if self.metadata.meta_key.is_some() {
             self.content_buffer.len()
@@ -601,7 +609,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         sidebar: String,
         heading_level: usize,
     ) -> Result<()> {
-        self.push_buffer();
+        self.push_body_buffer();
 
         let slug = self.resolve_slug(&url, "Embed");
         let slug = match slug {
