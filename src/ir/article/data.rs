@@ -184,6 +184,7 @@ impl<'c, 'b: 'c, 'a: 'b> GlobalData<'a, 'b, 'c> {
                     head.push(rule_head.as_str());
                 }
             }
+            head.end(article.head.trim().to_string());
             head
         })
     }
