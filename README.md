@@ -15,7 +15,9 @@ Typsite is a static site generator (SSG) that uses pure `Typst` for content crea
 -   Core `Typst` expressions and syntax
 -   Framework: Incremental headings, section templates, sidebar, footer
 -   Rich Text: Paragraphs, sections, quotes, code blocks, math formulas, footnotes, page embeds
+-   Typst math -> Mathml （auto detected math-font)
 -   Support for modern web technologies: HTML5, CSS3, and JavaScript (ES6+)
+-   Automatically typst-packages install & sync (in watch-mode) 
 -   Incremental compilation and real-time preview
 
 
@@ -73,4 +75,4 @@ We welcome your contributions to Typsite!
 
 ## Acknowledgements
 
-- [kokic](https://github.com/kokic) : [Kodama](https://github.com/kokic/kodama) for **Markdown + Typst + LaTeX SSG**
+- [kokic](https://github.com/kokic) : [kodama](https://github.com/kokic/kodama) for **Markdown + Typst + LaTeX SSG**
