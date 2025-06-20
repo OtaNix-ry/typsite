@@ -46,7 +46,7 @@
 ///     The font style to apply
 /// - weight (str):  "regular", "bold", "bolder", "lighter"
 ///     The font weight to apply
-/// - size (ratio):
+/// - size (ratio | length):
 ///     The font size to apply, as a ratio of the default size (e.g., 100% for default size).
 /// - fill (color):
 ///     The text color to apply, as a color value.
@@ -67,10 +67,24 @@
   spacing: 0pt + 100%,
   content,
 ) = context {
-  if target() != "html" {
-    return std.text(content)
+  let text-size = if type(size) == ratio {
+    11pt * size
+  } else if type(size) == length {
+    size
+  } else {
+    panic("Invalid type " + type(size) + " for size: " + to-str([#size]))
   }
-
+  let content = std.text(
+    style: style,
+    weight: weight,
+    size: text-size,
+    tracking: tracking,
+    spacing: spacing,
+    content,
+  )
+  if target() != "html" {
+    return content
+  }
   let styles = ()
   if font != none {
     styles.push("font: " + font + ";")
