@@ -342,8 +342,7 @@ const SCALE_KEY: &[u8] = b"scale";
 const TYPST_DOC_KEY: &[u8] = b"typst-doc";
 const WIDTH_KEY: &[u8] = b"width";
 const HEIGHT_KEY: &[u8] = b"height";
-const VIEW_BOX_KEY: &[u8] = b"viewBox";
-const VIEW_BOX_VALUE: &[u8] = b"0, 0, 100%, 100%";
+const VIEW_BOX_KEY: &[u8] = b"viewbox";
 const PT_OVER_PX: f64 = 3.0 / 4.0;
 
 fn scale(attrs: &mut BTreeMap<HtmlString, HtmlString>, key: &[u8], ratio: f64) -> Result<()> {
@@ -381,7 +380,8 @@ fn emit_other_start(
         {
             if let Some(ratio) = state.auto_svg {
                 let svg = &mut start_tag.attributes;
-                svg.insert(VIEW_BOX_KEY.to_vec().into(), VIEW_BOX_VALUE.to_vec().into());
+                let view_box_key: HtmlString = VIEW_BOX_KEY.to_vec().into();
+                svg.remove(&view_box_key);
                 scale(svg, WIDTH_KEY, ratio)?;
                 scale(svg, HEIGHT_KEY, ratio)?;
                 state.auto_svg = None;

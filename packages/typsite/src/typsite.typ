@@ -310,7 +310,7 @@
 ///     The content to be placed inside the auto-sized SVG element.
 /// -> auto-sized-svg style(if with svg in its content) ~> HTML svg
 ///       with the following attributes:
-///         - viewBox: 0, 0, 100%, 100%
+///         - viewBox: none
 ///         - width: _ * scale
 ///         - height: _ * scale
 #let auto-sized-svg(scale, content) = html.span(class: "auto-sized-svg", scale: to-str([#scale]), content)
