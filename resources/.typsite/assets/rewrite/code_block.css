@@ -9,6 +9,7 @@ pre {
   background-color: var(--background-color-pre);
   padding: .5em;
   margin-top: 0em;
+  margin-bottom: 0.65em;
   overflow-x: auto;
   white-space: pre-wrap;
   white-space: -moz-pre-wrap;

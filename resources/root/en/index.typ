@@ -9,6 +9,8 @@
 
 #get-metacontent("icon", from: "/index.typ")
 
+#html.align(center)[ #cite-title("./migrate-to-116.typ") ]
+
 = Introduction
 *Typsite* is a tool for building static websites. It uses pure *Typst* to write content and processes it through *Typsite* to generate a fully functional static site.
 
@@ -109,20 +111,21 @@ Options:
 == compile
 
 ```
-Compile or watch the project, specifying input/output directories
+Compile or watch the project with specified input and output directories
 
 Usage: typsite compile [OPTIONS]
 
 Options:
-      --config <CONFIG>  
-      --host <HOST>      Serve host [default: localhost]
-      --port <PORT>      Serve port, must be specified to watch mode [default: 0]
-      --cache <CACHE>    Cache directory [default: ./.cache]
-  -i, --input <INPUT>    Typst root directory [default: ./root] [alias: --i]
-  -o, --output <OUTPUT>  Output directory [default: ./publish] [alias: --o]
+      --host <HOST>          Serve host [default: localhost]
+      --port <PORT>          Serve port, must be specified to watch mode [default: 0]
+      --config <CONFIG>      Project config [default: ./.typsite]
+      --cache <CACHE>        Cache dir [default: ./.cache]
+  -i, --input <INPUT>        Typst root dir, where your typst files are stored [default: ./root] [aliases: --i]
+  -o, --output <OUTPUT>      Output dir [default: ./publish] [aliases: --o]
+  -p, --packages <PACKAGES>  Packages dir, will be installed to @local and will be synced to @local in watch mode, skip if empty or not found [default: ] [aliases: --p]
       --no-pretty-url
       --no-short-slug
-  -h, --help             Print help
+  -h, --help                 Print help
 ```
 
 == clean

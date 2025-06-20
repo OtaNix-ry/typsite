@@ -76,8 +76,21 @@ body {
   background-color: var(--background-color);
 }
 p {
-  line-height: 1.65;
-  margin-bottom: 0.55em;
+  line-height: 1.55;
+  margin-bottom: 0.65em;
+}
+
+p + ul {
+  margin-top: -0.55em;
+}
+
+ul {
+  margin-top: 0em;
+  margin-bottom: 0em;
+}
+
+ul + p {
+  margin-top: 0.15em;
 }
 
 /* !forest */
@@ -161,35 +174,13 @@ p {
   margin-top: 0;
 }
 
-article {
-  p + ul {
-    margin-top: 0.5em;
-  }
 
-  ul + p {
-    margin-top: 0.5em;
-  }
 
-  ul {
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
-  }
-
-  li > ul {
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
-  }
-  p > ul {
-    margin-bottom: 0.5em;
-  }
-  li > p {
-    margin-bottom: 0.3em;
-  }
-}
 
 details > summary {
   list-style-type: none;
   outline: none;
+  margin-bottom: 0.25em;
 }
 
 details > summary > header {
@@ -419,6 +410,7 @@ body > header {
   z-index: 1000;
   font-size: 100%;
 }
+
 
 header[parent="false"] {
   display: none;

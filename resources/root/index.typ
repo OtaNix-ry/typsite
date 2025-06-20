@@ -216,6 +216,8 @@
 
 
 
+#html.align(center)[ #cite-title("migrate-to-116.typ") ]
+
 = 介绍
 Typsite 是一个用于构建静态网站的工具，其文章内容由纯 *Typst* 编写，经由 *Typsite* 进行处理后，最终生成一个健全的静态站点。
 
@@ -332,6 +334,7 @@ Typsite 兼容绝大部分 typst 的原生表达:
       --cache <CACHE>    缓存目录 [默认: ./.cache]
   -i, --input <INPUT>    Typst 根目录，存放 typst 文件的位置 [默认: ./root] [别名: --i]
   -o, --output <OUTPUT>  输出目录 [默认: ./publish] [别名: --o]
+  -p, --packages <PACKAGES>  本地包目录，typsite会将在此目录的包自动安装到@local，若在watch-mode则会自动同步，如果为空或未找到目录则跳过 [默认: ""] [别名: --p]
       --no-pretty-url
       --no-short-slug
   -h, --help             打印帮助

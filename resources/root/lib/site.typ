@@ -20,6 +20,7 @@
 
 #let auto-filter(content) = html.span(class: "auto-filter", content)
 
+
 #let inline-math(body, block: auto, scale: 100%) = {
   if block == auto {
     block = body.block
