@@ -349,7 +349,7 @@ const PT_OVER_PX: f64 = 3.0 / 4.0;
 fn scale(attrs: &mut BTreeMap<HtmlString, HtmlString>, key: &[u8], ratio: f64) -> Result<()> {
     let origin = attrs
         .get(key)
-        .context(format!("Expect an attribute of {key:#?} in auto-svg tag"))?;
+        .with_context(|| format!("Expect an attribute of {key:#?} in auto-svg tag"))?;
     let origin = html_as_str(origin).to_string();
     if !origin.ends_with("pt") {
         return Err(anyhow!("Cannot pass {key:#?} using units other than pt"));
@@ -368,9 +368,9 @@ fn emit_other_start(
     match name.as_str() {
         "span" if matches!(start_tag.attributes.get(CLASS_KEY),Some(class) if class == &AUTO_SVG_KEY || class == &AUTO_SIZED_SVG_KEY) =>
         {
-            let scale = start_tag.attributes.get(SCALE_KEY).context(format!(
-                "Expect an attribute of {SCALE_KEY:#?} in auto-sized-svg tag"
-            ))?;
+            let scale = start_tag.attributes.get(SCALE_KEY).with_context(|| {
+                format!("Expect an attribute of {SCALE_KEY:#?} in auto-sized-svg tag")
+            })?;
             let scale = html_as_str(scale).to_string();
             let scale = scale[0..scale.len() - 1].parse::<f64>()? / 100.0;
             state.auto_svg = Some(scale)

@@ -122,12 +122,12 @@ fn copy_to_output(parent: &Path, file: &Path, output_path: &Path) -> Result<()> 
     let file_path = relative_path(parent, file)?;
     let output_path = output_path.join(&file_path);
     if let Some(parent) = output_path.parent() {
-        create_dir_all(parent).context(format!(
+        create_dir_all(parent).with_context(|| format!(
             "Create directory failed while creating file: {output_path:#?}"
         ))?;
     }
     let exists = output_path.exists();
-    fs::copy(file, &output_path).context(format!("Copy {file:#?} to {output_path:#?}  failed."))?;
+    fs::copy(file, &output_path).with_context(|| format!("Copy {file:#?} to {output_path:#?}  failed."))?;
     if exists {
         println!("  ∓ {output_path:#?}");
     } else {
@@ -138,7 +138,7 @@ fn copy_to_output(parent: &Path, file: &Path, output_path: &Path) -> Result<()> 
 
 fn remove_output(parent: &Path, file: &Path, output_path: &Path) -> Result<()> {
     let file_path =
-        relative_path(parent, file).context(format!("Remove file {file:#?} failed."))?;
+        relative_path(parent, file).with_context(|| format!("Remove file {file:#?} failed."))?;
     let output = output_path.join(&file_path);
     if !output.exists() {
         println!("  ? {output:#?}");

@@ -128,8 +128,8 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
     pub fn run(mut self, tokenizer: HtmlTokenizer<StringReader<'b>>) -> TypResult<Article<'a>> {
         let result = self.visit_html(tokenizer);
         self.result(result);
-        let (head, body, mut error,cache, data) = PurePassData::from(self);
-        match Self::article(head, body, &mut error,cache, data) {
+        let (head, body, mut error, cache, data) = PurePassData::from(self);
+        match Self::article(head, body, &mut error, cache, data) {
             Ok(article) if !error.has_error() => return Ok(article),
             Err(err) => error.add(err),
             _ => {}
@@ -148,7 +148,10 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         let slug = data.slug;
         let path = data.path;
         let schema = data.schema.context("No schema, skip..")?;
-        let metadata = data.metadata.build(slug.clone(), cache.as_ref().map(|it| it.get_meta_contents()))?;
+        let metadata = data.metadata.build(
+            slug.clone(),
+            cache.as_ref().map(|it| it.get_meta_contents()),
+        )?;
         let (mut full_sidebar, mut embed_sidebar) = data.sidebar.build(&data.config.sidebar);
         let (body_content, body_rewriters, embeds) = body.build(
             &mut |pos| full_sidebar.titles.remove(&pos).unwrap(),
@@ -342,7 +345,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
                     .config
                     .rules
                     .get(tag.as_str())
-                    .context(format!("No rewrite rule named {tag}"))?;
+                    .with_context(|| format!("No rewrite rule named {tag}"))?;
                 let tag_name = self.config.rules.rule_name(&tag).unwrap();
                 self.used_rules.insert(tag_name);
 
@@ -416,7 +419,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
                     .config
                     .rules
                     .get(tag.as_str())
-                    .context(format!("No rewrite rule named {tag}"))?;
+                    .with_context(|| format!("No rewrite rule named {tag}"))?;
                 let tag_name = self.config.rules.rule_name(tag.as_str()).unwrap();
                 self.push_rewriter_end(tag_name, rule)?;
             }
@@ -481,10 +484,12 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         let path = resolve_path(self.root, self.path.parent().unwrap(), slug_path)?;
         let slug = self.config.path_to_slug(path.as_path())?;
 
-        self.registry.slug(slug.as_str()).context(format!(
-            "Failed to resolve slug {slug_path} in {}  ({tag})",
-            self.slug
-        ))
+        self.registry.slug(slug.as_str()).with_context(|| {
+            format!(
+                "Failed to resolve slug {slug_path} in {}  ({tag})",
+                self.slug
+            )
+        })
     }
 
     fn push_meta_or_sidebar_plain(&mut self, text: &str) -> bool {

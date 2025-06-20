@@ -94,7 +94,7 @@ impl<'c, 'b: 'c, 'a: 'b> Article<'a> {
                 err.ok(config
                     .rules
                     .rule_name(rule.as_str())
-                    .context(format!("No rewrite rule named {rule}")))
+                    .with_context(|| format!("No rewrite rule named {rule}")))
             })
             .collect::<Vec<Option<_>>>();
         let anchors = pure.anchors;

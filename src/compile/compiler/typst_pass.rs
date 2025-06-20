@@ -22,7 +22,7 @@ pub fn compile_typst(root: &Path, input: &Path, output: &Path) -> anyhow::Result
                 output.display()
             ))
             .output()
-            .context(format!("Typst compile to HTML failed: {}", input.display()))?
+            .with_context(|| format!("Typst compile to HTML failed: {}", input.display()))?
     } else {
         create_all_parent_dir(output)?;
         Command::new("typst")
@@ -37,7 +37,7 @@ pub fn compile_typst(root: &Path, input: &Path, output: &Path) -> anyhow::Result
             .arg("html-frames=true")
             .arg(output)
             .output()
-            .context(format!("Typst compile to HTML failed: {}", input.display()))?
+            .with_context(|| format!("Typst compile to HTML failed: {}", input.display()))?
     };
     if output.status.success() {
         Ok(())

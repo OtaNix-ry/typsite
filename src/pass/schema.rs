@@ -9,7 +9,7 @@ use crate::util::html::{Attributes, OutputHtml};
 use crate::util::html::{OutputHead, write_token};
 use crate::util::str::ac_replace;
 use crate::write_into;
-use anyhow::{Context};
+use anyhow::Context;
 use html5gum::{Token, Tokenizer};
 use std::borrow::Cow;
 use std::fmt::Write;
@@ -151,14 +151,14 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
                                 .global_data
                                 .articles
                                 .get(from)
-                                .context(format!(
-                                    "Article {from} not found in metadata's attr `from`"
-                                ))
+                                .with_context(|| {
+                                    format!("Article {from} not found in metadata's attr `from`")
+                                })
                                 .map(|it| it.slug.as_str())
                                 .and_then(|from| {
                                     self.global_data
                                         .metadata(from)
-                                        .context(format!("Metadata of {from} not found"))
+                                        .with_context(|| format!("Metadata of {from} not found"))
                                 });
                             err.ok(from)
                         }
@@ -167,7 +167,7 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
                         let content = metadata
                             .contents
                             .get(&meta_key)
-                            .context(format!("Metadata key {meta_key} not found"));
+                            .with_context(|| format!("Metadata key {meta_key} not found"));
                         err.ok(content)
                             .and_then(|content| err.ok(write_into!(self.body, "{}", content)))
                     })
@@ -191,11 +191,11 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
                 Err(e) => {
                     err.add(TypsiteError::HtmlParse(e).into());
                     break;
-                },
+                }
             };
         }
         if err.has_error() {
-            return Err(err)
+            return Err(err);
         }
         let html = OutputHtml::<'a>::new(head, self.body);
         Ok(html)

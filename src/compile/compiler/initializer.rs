@@ -55,9 +55,10 @@ pub fn initialize<'a>(
     let retry_typst_paths = monitor.retry_typsts();
     let retry_html_paths = monitor.retry_htmls();
 
-    let config = TypsiteConfig::load(config_path, typst_path, html_cache_path).context(format!(
-        "Loading '{config_path:?}' failed, try to init Typsite first by: typsite init"
-    ))?;
+    let config =
+        TypsiteConfig::load(config_path, typst_path, html_cache_path).with_context(|| {
+            format!("Loading '{config_path:?}' failed, try to init Typsite first by: typsite init")
+        })?;
 
     let mut options_changed = false;
     let mut components_changed = false;

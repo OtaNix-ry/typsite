@@ -79,11 +79,10 @@ fn install_package(package: &Path, info: &PackageInfo) -> Result<()> {
     let local_package_dir = info.get_local_dir()?;
     if local_package_dir.exists() {
         remove_dir_all(&local_package_dir)
-            .context(format!("Failed to clean {local_package_dir:?}"))?;
+            .with_context(|| format!("Failed to clean {local_package_dir:?}"))?;
     }
-    copy_dir(package, &local_package_dir).context(format!(
-        "Failed to extract {info} from {local_package_dir:?}"
-    ))?;
+    copy_dir(package, &local_package_dir)
+        .with_context(|| format!("Failed to extract {info} from {local_package_dir:?}"))?;
     Ok(())
 }
 fn install_included_package(dir: &include_dir::Dir, info: &PackageInfo) -> Result<()> {
@@ -91,9 +90,8 @@ fn install_included_package(dir: &include_dir::Dir, info: &PackageInfo) -> Resul
     if local_package_dir.exists() {
         remove_dir_all(&local_package_dir)?;
     }
-    create_dir_all(&local_package_dir).context(format!(
-        "Failed to create {info} directory in {local_package_dir:?}"
-    ))?;
+    create_dir_all(&local_package_dir)
+        .with_context(|| format!("Failed to create {info} directory in {local_package_dir:?}"))?;
     let dir_name = dir
         .path()
         .to_str()
@@ -103,17 +101,18 @@ fn install_included_package(dir: &include_dir::Dir, info: &PackageInfo) -> Resul
 
 fn get_included_package_info(dir: &include_dir::Dir) -> Result<PackageInfo> {
     let path = format!("{}/typst.toml", dir.path().to_string_lossy());
-    let typst_toml = dir.get_file(&path).context(format!(
-        "Failed to get `typst.toml` in included `{path:?}`"
-    ))?;
-    let content = typst_toml.contents_utf8().context(format!(
-        "Failed to read `typst.toml` in included `{:?}`",
-        dir.path()
-    ))?;
-    get_package_info_from_content(content).context(format!(
-        "Failed to parse `typst.toml` in included `{:?}`",
-        dir.path()
-    ))
+    let typst_toml = dir
+        .get_file(&path)
+        .with_context(|| format!("Failed to get `typst.toml` in included `{path:?}`"))?;
+    let content = typst_toml
+        .contents_utf8()
+        .with_context(|| format!("Failed to read `typst.toml` in included `{:?}`", dir.path()))?;
+    get_package_info_from_content(content).with_context(|| {
+        format!(
+            "Failed to parse `typst.toml` in included `{:?}`",
+            dir.path()
+        )
+    })
 }
 
 fn extract<S: AsRef<Path>>(
@@ -163,9 +162,9 @@ impl fmt::Display for PackageInfo {
 }
 impl PackageInfo {
     pub fn get_local_dir(&self) -> Result<PathBuf> {
-        let home_path = home_dir().context(format!(
-            "Failed to get home directory while installing {self} into @local"
-        ))?;
+        let home_path = home_dir().with_context(|| {
+            format!("Failed to get home directory while installing {self} into @local")
+        })?;
         let PackageInfo { name, version } = self;
         let local_package =
             home_path.join(format!(".cache/typst/packages/local/{name}/{version}/"));
@@ -179,8 +178,8 @@ struct TypstToml {
 }
 
 fn get_package_info(typst_toml: &Path) -> Result<PackageInfo> {
-    let content =
-        fs::read_to_string(typst_toml).context(format!("Failed to read `{typst_toml:?}`"))?;
+    let content = fs::read_to_string(typst_toml)
+        .with_context(|| format!("Failed to read `{typst_toml:?}`"))?;
     get_package_info_from_content(&content)
 }
 fn get_package_info_from_content(toml_str: &str) -> Result<PackageInfo> {

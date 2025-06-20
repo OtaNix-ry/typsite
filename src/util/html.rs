@@ -33,7 +33,8 @@ impl Attributes {
             .attrs
             .remove(&HtmlString::from(key.as_bytes().to_vec()))
         {
-            Ok(String::from_utf8(html.0).context(format!("Attribute {key} parsing failed"))?)
+            Ok(String::from_utf8(html.0)
+                .with_context(|| format!("Attribute {key} parsing failed"))?)
         } else {
             Err(anyhow!("Attribute {} not found", key))
         }
@@ -53,7 +54,7 @@ impl Attributes {
             .into_iter()
             .map(|(key, value)| {
                 (
-                    format!("{{{}}}",html_as_str(&key)),
+                    format!("{{{}}}", html_as_str(&key)),
                     html_as_str(&value).to_string(),
                 )
             })
@@ -233,9 +234,9 @@ impl Html {
     where
         F: FnMut(Token) -> Result<()>,
     {
-        let file = File::open(path).context(format!("Cannot find the path: {path:?}"))?;
+        let file = File::open(path).with_context(|| format!("Cannot find the path: {path:?}"))?;
         let reader = read_to_string(BufReader::new(file))
-            .context(format!("Cannot read the file {path:?}"))?;
+            .with_context(|| format!("Cannot read the file {path:?}"))?;
         Self::load_by_tokenizer_with_body_callback(Tokenizer::new(&reader), body_callback)
     }
     pub fn load_by_tokenizer_with_body_callback<F>(
@@ -256,9 +257,9 @@ impl Html {
         Ok(Self::new(head, body))
     }
     pub fn load(path: &Path) -> Result<Self> {
-        let file = File::open(path).context(format!("Cannot find the path: {path:?}"))?;
+        let file = File::open(path).with_context(|| format!("Cannot find the path: {path:?}"))?;
         let reader = read_to_string(BufReader::new(file))
-            .context(format!("Cannot read the file {path:?}"))?;
+            .with_context(|| format!("Cannot read the file {path:?}"))?;
         Self::load_by_tokenizer(Tokenizer::new(&reader))
     }
 
@@ -292,9 +293,9 @@ pub struct HtmlWithTail {
 
 impl HtmlWithTail {
     pub fn load(path: &Path, delimiter: &str) -> Result<Self> {
-        let file = File::open(path).context(format!("Cannot find the path: {path:?}"))?;
+        let file = File::open(path).with_context(|| format!("Cannot find the path: {path:?}"))?;
         let reader = read_to_string(BufReader::new(file))
-            .context(format!("Cannot read the file {path:?}"))?;
+            .with_context(|| format!("Cannot read the file {path:?}"))?;
         Self::load_by_tokenizer(Tokenizer::new(&reader), delimiter)
     }
 

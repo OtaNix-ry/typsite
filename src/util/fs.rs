@@ -1,14 +1,13 @@
 use crate::util::error::TypsiteError;
 use anyhow::{Context, anyhow};
 use std::fs;
-use std::path::{Path};
+use std::path::Path;
 
 pub fn create_all_parent_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<()> {
     let path = path.as_ref();
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).context(format!(
-            "Create directory failed while creating file: {path:?}"
-        ))?;
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Create directory failed while creating file: {path:?}"))?;
     }
     Ok(())
 }
@@ -17,12 +16,12 @@ pub fn write_into_file<P: AsRef<Path>>(path: P, content: &str, source: &str) -> 
     create_all_parent_dir(&path)?;
     fs::write(&path, content)
         .map_err(TypsiteError::Io)
-        .context(format!("Failed to write {source} {:?}", path.as_ref()))
+        .with_context(|| format!("Failed to write {source} {:?}", path.as_ref()))
 }
 
 pub fn remove_file<P: AsRef<Path>>(path: P, source: &str) -> anyhow::Result<()> {
     std::fs::remove_file(path.as_ref())
-        .context(format!("Failed to remove {source}: {:?}", path.as_ref()))
+        .with_context(|| format!("Failed to remove {source}: {:?}", path.as_ref()))
 }
 pub fn remove_file_log_err<P: AsRef<Path>>(path: P, source: &str) {
     remove_file(path, source).unwrap_or_else(|err| eprintln!("[WARN] {err}"));
@@ -33,7 +32,7 @@ pub fn remove_file_ignore<P: AsRef<Path>>(path: P) {
 
 pub fn remove_dir_all<P: AsRef<Path>>(path: P) -> anyhow::Result<()> {
     let path_ref = path.as_ref();
-    
+
     std::fs::remove_dir_all(path_ref)
         .with_context(|| format!("Unable to delete directory: {}", path_ref.display()))?;
 
@@ -109,7 +108,7 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> anyhow::Result<()> {
             let link_target = fs::read_link(entry.path()).with_context(|| {
                 format!("Failed to read symbolic link: {}", entry.path().display())
             })?;
-            
+
             // Platform-specific symlink recreation
             #[cfg(unix)]
             std::os::unix::fs::symlink(&link_target, &target_path).with_context(|| {
@@ -119,22 +118,21 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> anyhow::Result<()> {
                     link_target.display()
                 )
             })?;
-            
+
             #[cfg(windows)]
             {
                 // On Windows, determine if symlink points to file or directory
-                let target_metadata = link_target
-                    .metadata()
-                    .with_context(|| format!("Failed to read target metadata: {}", link_target.display()));
-                
+                let target_metadata = link_target.metadata().with_context(|| {
+                    format!("Failed to read target metadata: {}", link_target.display())
+                });
+
                 match target_metadata {
                     Ok(meta) if meta.is_dir() => {
                         std::os::windows::fs::symlink_dir(&link_target, &target_path)
                     }
-                    _ => {
-                        std::os::windows::fs::symlink_file(&link_target, &target_path)
-                    }
-                }.with_context(|| {
+                    _ => std::os::windows::fs::symlink_file(&link_target, &target_path),
+                }
+                .with_context(|| {
                     format!(
                         "Failed to create symbolic link: {} -> {}",
                         target_path.display(),
@@ -145,7 +143,7 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> anyhow::Result<()> {
         }
         // Other file types (FIFOs, sockets, etc.) are skipped
     }
-    
+
     Ok(())
 }
 #[macro_export]

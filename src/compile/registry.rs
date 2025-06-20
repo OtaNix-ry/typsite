@@ -85,6 +85,6 @@ impl KeyRegistry {
         self.known_articles
             .get(&slug)
             .cloned()
-            .context(format!("{tag} not found: {slug} in {from}"))
+            .with_context(|| format!("{tag} not found: {slug} in {from}"))
     }
 }

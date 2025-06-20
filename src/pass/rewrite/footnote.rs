@@ -28,7 +28,7 @@ impl TagRewritePass for FootnoteRef {
         let numbering = data
             .footnotes
             .get_numbering(name)
-            .context(format!("FootnoteRefRule: no such footnote called {name}"))?;
+            .with_context(|| format!("FootnoteRefRule: no such footnote called {name}"))?;
         let numbering = numbering.to_string();
         attrs.insert(String::from("numbering"), numbering);
         Ok(attrs)
@@ -70,7 +70,7 @@ impl TagRewritePass for FootnoteDef {
             return Err(anyhow!("FootnoteDefRule: expect name attribute"));
         }
         let name = name.unwrap();
-        let (name,numbering) = pure.add_footnote(name.to_string());
+        let (name, numbering) = pure.add_footnote(name.to_string());
         Ok([
             (String::from("name"), name.to_string()),
             (String::from("numbering"), numbering.to_string()),

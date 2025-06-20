@@ -31,7 +31,7 @@ pub fn relative_path(base: &Path, path: &Path) -> Result<PathBuf> {
     path.strip_prefix(base)
         .map(|p| p.to_path_buf())
         .map_err(TypsiteError::PathConversion)
-        .context(format!(
+        .with_context(|| format!(
             "Failed to convert path {path:?} to relative path of {base:?}"
         ))
 }
