@@ -96,7 +96,7 @@ impl Compiler {
             &self.html_cache_path,
             &self.config_path,
             &self.assets_path,
-            self.packages_path.as_ref().map(|it| it.as_path()),
+            self.packages_path.as_deref(),
         )?;
         // If all files are not changed, return
         if input.unchanged() {

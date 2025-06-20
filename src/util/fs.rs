@@ -97,7 +97,7 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> anyhow::Result<()> {
             copy_dir_recursive(&entry.path(), &target_path)?;
         } else if file_type.is_file() {
             // Handle file: copy contents
-            copy_file(&entry.path(), &target_path).with_context(|| {
+            copy_file(entry.path(), &target_path).with_context(|| {
                 format!(
                     "Failed to copy file from {} to {}",
                     entry.path().display(),
@@ -106,7 +106,7 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> anyhow::Result<()> {
             })?;
         } else if file_type.is_symlink() {
             // Handle symbolic link: recreate link
-            let link_target = fs::read_link(&entry.path()).with_context(|| {
+            let link_target = fs::read_link(entry.path()).with_context(|| {
                 format!("Failed to read symbolic link: {}", entry.path().display())
             })?;
             

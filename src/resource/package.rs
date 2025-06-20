@@ -54,7 +54,7 @@ pub fn install_included_packages() -> Result<()> {
         .filter_map(|it| it.as_dir())
         .map(|dir| -> Result<()> {
             let info = get_included_package_info(dir)?;
-            install_local(info, |info| install_included_package(&dir, info))
+            install_local(info, |info| install_included_package(dir, info))
         })
         .collect::<Result<()>>()
 }
@@ -104,8 +104,7 @@ fn install_included_package(dir: &include_dir::Dir, info: &PackageInfo) -> Resul
 fn get_included_package_info(dir: &include_dir::Dir) -> Result<PackageInfo> {
     let path = format!("{}/typst.toml", dir.path().to_string_lossy());
     let typst_toml = dir.get_file(&path).context(format!(
-        "Failed to get `typst.toml` in included `{:?}`",
-        path
+        "Failed to get `typst.toml` in included `{path:?}`"
     ))?;
     let content = typst_toml.contents_utf8().context(format!(
         "Failed to read `typst.toml` in included `{:?}`",
@@ -138,7 +137,7 @@ fn extract<S: AsRef<Path>>(
             DirEntry::Dir(d) => {
                 fs::create_dir_all(&path)
                     .with_context(|| format!("Failed to create dir all for {path:?}"))?;
-                extract(&d, root_dir_name, base_path)?;
+                extract(d, root_dir_name, base_path)?;
             }
             DirEntry::File(f) => {
                 fs::write(&path, f.contents())
