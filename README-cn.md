@@ -6,6 +6,10 @@
 <img src="./icon.png" width="37.5%"/>
 </div>
 
+<div style="text-align: center;">
+<a href="https://typ.rowlib.com/migrate-to-116" title="迁移到 Typsite 1.1.6 [https://typ.rowlib.com/migrate-to-116]">迁移到 Typsite <span style="color: #22d3ee;">1.1.6</span></a>
+</div>
+
 ## 1. 介绍
 
 Typsite 是一个用于构建静态网站的工具，其文章内容由纯 `Typst` 编写，经由 `Typsite` 进行处理后，最终生成一个健全的静态站点。
