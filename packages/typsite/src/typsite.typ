@@ -219,13 +219,12 @@
 /// - content (content):
 ///     The content to be placed inside the metaoption element.
 /// -> set-metaoption tag ~> none
-#let metaoption(key, value, content) = context {
+#let metaoption(key, value) = context {
   if target() == "html" {
     html.tag(
       "metaoption",
       key: key,
       value: value,
-      ..attrs,
     )[]
   }
 }
