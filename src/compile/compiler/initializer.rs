@@ -2,6 +2,7 @@ use super::{PathBufs, cache::monitor::Monitor};
 use crate::{
     compile::{compile_options, init_proj_options, options::ProjOptions, proj_options},
     config::TypsiteConfig,
+    resource::package::install_packages,
     util::path::file_ext,
 };
 use anyhow::*;
@@ -29,15 +30,22 @@ pub fn initialize<'a>(
     html_cache_path: &'a Path,
     config_path: &'a Path,
     assets_path: &'a Path,
+    packages_path: Option<&Path>,
 ) -> Result<Input<'a>> {
     // Load hash cache
-    let mut monitor = Monitor::load(cache_path, config_path, typst_path, html_cache_path);
+    let mut monitor = Monitor::load(
+        cache_path,
+        config_path,
+        typst_path,
+        html_cache_path,
+        packages_path,
+    );
 
     // Get updated and deleted typst files
     let (all_typst_paths, mut changed_typst_paths, mut deleted_typst_paths) =
         monitor.refresh_typst()?;
 
-    // Get updated config files
+    // Get updated config and deleted files
     let (changed_config_paths, deleted_config_paths) = monitor.refresh_config()?;
 
     // Get updated and deleted non-typst files
@@ -65,13 +73,28 @@ pub fn initialize<'a>(
         }
     }
 
-    init_options_toml(config_path)?;
     if options_changed {
         println!("Options changed, reloading...");
     }
     if components_changed {
         println!("Components changed, reloading...");
     }
+
+    let packages_changed = if let Some(packages_path) = packages_path {
+        // Get updated cand deleted package files
+        let (changed_package_paths, deleted_package_paths) =
+            monitor.refresh_packages(packages_path)?;
+        !changed_package_paths.is_empty() || !deleted_package_paths.is_empty()
+    } else {
+        false
+    };
+    if packages_changed {
+        println!("Packages changed");
+        install_packages(packages_path.unwrap()).with_context(|| "Packages installing failed")?;
+        println!("Packages changed, reloading...");
+    }
+
+    init_options_toml(config_path)?;
     let lib_files = &proj_options()?.typst_lib.files;
     let lib_dirs = &proj_options()?.typst_lib.dirs;
     let libs_changed = changed_typst_paths
@@ -90,8 +113,11 @@ pub fn initialize<'a>(
         println!("Typst lib files changed, reloading...");
     }
 
-    let overall_compile_needed =
-        !cache_path.exists() || options_changed || components_changed || libs_changed;
+    let overall_compile_needed = !cache_path.exists()
+        || options_changed
+        || components_changed
+        || libs_changed
+        || packages_changed;
 
     if overall_compile_needed {
         changed_typst_paths = all_typst_paths;

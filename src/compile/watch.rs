@@ -26,7 +26,7 @@ pub async fn watch(compiler: Compiler,host:String, port: u16) -> Result<()> {
     let url = format!("{host}:{port}");
     println!("  - Serve url: http://{url}");
     let server = Server::http(url).unwrap();
-    let publish_dir = compiler.output_path.clone();
+    let publish_dir = compiler.output_path().to_path_buf();
 
     let server_task = tokio::task::Builder::new()
         .name("server_task")

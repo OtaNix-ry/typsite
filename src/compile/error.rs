@@ -1,8 +1,6 @@
 use std::fmt::Display;
 
-use anyhow::Error;
-
-use crate::compile::registry::Key;
+use crate::{compile::registry::Key, util::error::padding_error};
 
 pub type TypResult<T> = Result<T, TypError>;
 
@@ -78,10 +76,6 @@ impl TypError {
     }
 }
 
-fn padding_error(error: &Error, padding:&str) -> String{
-    error.to_string().lines().map(|it| format!("{padding}{it}")).collect::<Vec<String>>().join("\n")
-}
-
 impl Display for TypError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "       Errors for article '{}' :", self.slug)?;
@@ -94,7 +88,7 @@ impl Display for TypError {
         } else {
             for (index, error) in self.errors.iter().enumerate() {
                 writeln!(f, "        Error #{}:", index + 1)?;
-                writeln!(f, "{}",padding_error(error, "            "))?;
+                writeln!(f, "{}", padding_error(error, "            "))?;
                 for cause in error.chain().skip(1) {
                     writeln!(f, "            caused by: {cause}")?;
                 }

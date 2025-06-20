@@ -1,9 +1,11 @@
 use std::{env, fs, process::exit};
 
-use crate::{compile::compiler::Compiler, util::path::verify_if_relative_path};
+use crate::compile::compiler::clean_dir;
 use crate::compile::options::CompileOptions;
 use crate::config::highlight::CodeHightlightConfig;
-use crate::config::resources::copy_default_typsite;
+use crate::resource::default::copy_default_typsite;
+use crate::resource::package::install_included_packages;
+use crate::{compile::compiler::Compiler, util::path::verify_if_relative_path};
 use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::Path;
@@ -45,46 +47,57 @@ impl Executor {
     fn build_compiler(cmd: CompileCmd) -> Result<Compiler> {
         println!("Preparing compiler...");
         let cwd = env::current_dir().context("Failed to get current work dir")?;
-        let cache_path = Path::new(cmd.cache.as_str());
-        let config_path = Path::new(cmd.config.as_str());
-        let input_path = Path::new(cmd.input.as_str());
-        let output_path = Path::new(cmd.output.as_str());
+        let cache_path = cmd.cache.as_str();
+        let config_path = cmd.config.as_str();
+        let input_path = cmd.input.as_str();
+        let output_path = cmd.output.as_str();
+        let packages_path = cmd.packages.as_str();
 
         let cache_path = verify_if_relative_path(&cwd, cache_path)?;
         let config_path = verify_if_relative_path(&cwd, config_path)?;
         let input_path = verify_if_relative_path(&cwd, input_path)?;
         let output_path = verify_if_relative_path(&cwd, output_path)?;
+        let packages_path = if !packages_path.is_empty() {
+            Some(verify_if_relative_path(&cwd, packages_path)?).filter(|it| it.is_dir())
+        } else {
+            None
+        };
 
+        println!(
+            "  - Packages: {}",
+            packages_path
+                .as_ref()
+                .map(|it| format!("included + {it:?}"))
+                .unwrap_or("included".to_string())
+        );
         println!("  - Cache dir: {cache_path:?}");
         println!("  - Config dir: {config_path:?}");
         println!("  - Input dir: {input_path:?}");
         println!("  - Output dir: {output_path:?}");
-
 
         let config = CompileOptions {
             watch: cmd.port != 0,
             short_slug: !cmd.no_short_slug,
             pretty_url: !cmd.no_pretty_url,
         };
-        let compiler = Compiler::new(config, cache_path, config_path, input_path, output_path)?;
+        let compiler = Compiler::new(
+            config,
+            cache_path,
+            config_path,
+            input_path,
+            output_path,
+            packages_path,
+        )?;
         Ok(compiler)
     }
 
     fn execute_clean(clean_cmd: CleanCmd) -> Result<()> {
         println!("Start cleaning...");
         let cache = Path::new(clean_cmd.cache.as_str());
-        Self::clean(cache)?;
+        clean_dir(cache)?;
         let output = Path::new(clean_cmd.output.as_str());
-        Self::clean(output)?;
+        clean_dir(output)?;
         println!("Cleaning done.");
-        Ok(())
-    }
-
-    fn clean(path: &Path) -> Result<()> {
-        if path.exists() {
-            println!("  - Cleaning dir: {path:?}");
-            fs::remove_dir_all(path).context(format!("Failed to clean {path:?}"))?;
-        }
         Ok(())
     }
 
@@ -92,6 +105,7 @@ impl Executor {
         let host = compile_cmd.host.clone();
         let port = compile_cmd.port;
         let compiler = Self::build_compiler(compile_cmd)?;
+        install_included_packages()?;
         match port {
             0 => {
                 println!("Start compiling...");
@@ -103,8 +117,7 @@ impl Executor {
             }
             _ => {
                 println!("Start watching...");
-                Self::clean(&compiler.cache_path)?;
-                Self::clean(&compiler.output_path)?;
+                compiler.clean()?;
                 compiler.watch(host, port).await?;
             }
         }
@@ -167,6 +180,10 @@ struct CompileCmd {
     /// Output dir.
     #[arg(short, long, default_value_t = format!("./publish"), visible_alias = "o")]
     output: String,
+
+    /// Packages dir, will be installed to @local and will be synced to @local in watch mode, skip if empty or not found
+    #[arg(short, long, default_value_t = format!(""), visible_alias = "p")]
+    packages: String,
 
     // Pretty URL, remove the .html suffix from the URL, for example, /about.html -> /about
     #[arg(long, default_value_t = false)]

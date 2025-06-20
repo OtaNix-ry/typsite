@@ -3,8 +3,8 @@ use crate::compile::compiler::cache::dep::RevDeps;
 use crate::compile::options::CompileOptions;
 use crate::compile::registry::KeyRegistry;
 use crate::config::TypsiteConfig;
+use crate::util::fs::remove_dir_all;
 use crate::util::html::OutputHtml;
-use crate::util::path::format_path;
 use analysis::*;
 use anyhow::*;
 use html_pass::pass_html;
@@ -37,13 +37,22 @@ type PathBufs = HashSet<PathBuf>;
 type ErrorArticles = Vec<(PathBuf, String)>;
 type UpdatedPages<'a> = Vec<(Arc<Path>, OutputHtml<'a>)>;
 
+pub fn clean_dir(path: &Path) -> Result<()> {
+    if path.exists() {
+        println!("  - Cleaning dir: {path:?}");
+        remove_dir_all(path)?;
+    }
+    Ok(())
+}
+
 pub struct Compiler {
-    typst_path: PathBuf,            // Typst root
+    typst_path: PathBuf,      // Typst root
     html_cache_path: PathBuf, // Typst-export-html path (in which are raw typst-html-export files)
     config_path: PathBuf,     // Config root
-    pub(crate) cache_path: PathBuf, // Cache root
-    pub(crate) output_path: PathBuf,
-    assets_path: PathBuf, // Output
+    assets_path: PathBuf,     // Assets
+    cache_path: PathBuf,      // Cache root
+    output_path: PathBuf,     // Output
+    packages_path: Option<PathBuf>, // Package
 }
 
 impl Compiler {
@@ -53,28 +62,33 @@ impl Compiler {
         config_path: PathBuf,
         typst_path: PathBuf,
         output_path: PathBuf,
+        packages_path: Option<PathBuf>,
     ) -> Result<Self> {
         init_compile_options(options)?;
-        let cache_path = format_path(cache_path);
         let html_cache_path = cache_path.join("html");
-        let config_path = format_path(config_path);
         let assets_path = config_path.join("assets");
-        let typst_path = format_path(typst_path);
-        let output_path = format_path(output_path);
         Ok(Self {
-            html_cache_path,
-            cache_path,
             typst_path,
+            html_cache_path,
             config_path,
             assets_path,
+            cache_path,
             output_path,
+            packages_path,
         })
+    }
+    pub fn output_path(&self) -> &Path {
+        &self.output_path
+    }
+    pub fn clean(&self) -> Result<()> {
+        clean_dir(&self.cache_path)?;
+        clean_dir(&self.output_path)
     }
     pub async fn watch(self, host: String, port: u16) -> Result<()> {
         watch(self, host, port).await
     }
     // return (updated, no error)
-    pub fn compile(&self) -> Result<(bool,bool)> {
+    pub fn compile(&self) -> Result<(bool, bool)> {
         //1. Initialize input & config
         let input = initialize(
             &self.cache_path,
@@ -82,10 +96,11 @@ impl Compiler {
             &self.html_cache_path,
             &self.config_path,
             &self.assets_path,
+            self.packages_path.as_ref().map(|it| it.as_path()),
         )?;
         // If all files are not changed, return
         if input.unchanged() {
-            return Ok((false,true));
+            return Ok((false, true));
         } else if !input.overall_compile_needed {
             println!("Files changed, compiling...");
         }
@@ -128,7 +143,7 @@ impl Compiler {
             &self.typst_path,
             &self.html_cache_path,
             &changed_typst_paths,
-            retry_typst_paths
+            retry_typst_paths,
         );
 
         let mut changed_html_paths =
@@ -138,8 +153,12 @@ impl Compiler {
 
         //3. Pass HTML
         // Pass updated html files
-        let (changed_articles, error_passing_articles) =
-            pass_html(&config, &article_cache,  &mut registry, &mut changed_html_paths);
+        let (changed_articles, error_passing_articles) = pass_html(
+            &config,
+            &article_cache,
+            &mut registry,
+            &mut changed_html_paths,
+        );
 
         let changed_article_slugs = changed_articles
             .iter()
@@ -222,7 +241,7 @@ impl Compiler {
 
         sync_files_to_output(output);
 
-        Ok((updated,no_error))
+        Ok((updated, no_error))
     }
 }
 

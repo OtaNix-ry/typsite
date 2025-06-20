@@ -15,13 +15,16 @@ pub fn format_path(path: PathBuf) -> PathBuf {
         .unwrap_or(path)
 }
 
-pub fn verify_if_relative_path(cwd:&Path, path: &Path) -> Result<PathBuf> {
+pub fn verify_if_relative_path<P:AsRef<Path>>(cwd: &Path, path: P) -> Result<PathBuf> {
+    let path = path.as_ref();
     if path.starts_with("/") {
         let path = relative_path(cwd, path);
         path
     } else {
         Ok(path.to_path_buf())
-    }.context("Absolute paths are not supported. Please use a relative path from the current working directory.")
+    }
+    .map(format_path)
+    .context("Absolute paths are not supported. Please use a relative path from the current working directory.")
 }
 
 pub fn relative_path(base: &Path, path: &Path) -> Result<PathBuf> {
