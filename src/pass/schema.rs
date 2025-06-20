@@ -52,7 +52,7 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
 
         let footer_schema = matches!(self.schema.id.as_str(), REFERENCE_KEY | BACKLINK_KEY);
 
-        let mut head = if self.schema.content {
+        let head = if self.schema.content {
             self.global_data.init_html_head(self.article).clone()
         } else {
             OutputHead::empty()
@@ -91,7 +91,7 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
                     component
                         .into_iter()
                         .fold(OutputHtml::empty(), |mut acc, x| {
-                            acc.extend(x);
+                            acc.extend_body(x);
                             acc
                         })
                 } else {
@@ -101,9 +101,6 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
 
             let backlinks = footer_component_html(footer_body, BACKLINKS_KEY, backlinks);
             let references = footer_component_html(footer_body, REFERENCES_KEY, references);
-
-            footer.head.extend(&references.head);
-            footer.head.extend(&backlinks.head);
 
             let backlinks = if has_backlinks {
                 ac_replace(
@@ -129,7 +126,6 @@ impl<'d, 'c: 'd, 'b: 'c, 'a: 'b> SchemaPass<'a, 'b, 'c, 'd> {
         } else {
             OutputHtml::empty()
         };
-        head.extend(&footer.head);
 
         let body = metadata.inline(&self.schema.body);
         // Body

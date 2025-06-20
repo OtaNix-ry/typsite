@@ -134,43 +134,36 @@ impl<'ce> Deserialize<'ce> for Attributes {
 
 #[derive(Debug, Clone)]
 pub struct OutputHead<'a> {
-    start: String,
+    start: Vec<String>,
     head: Vec<&'a str>,
-    end: String,
+    end: Vec<String>,
 }
 
 impl<'a> OutputHead<'a> {
     pub fn empty() -> Self {
         Self {
-            start: String::new(),
+            start: Vec::new(),
             head: Vec::new(),
-            end: String::new(),
+            end: Vec::new(),
         }
     }
 
     pub fn start(&mut self, start: String) {
-        self.start = start;
-    }
-    pub fn end(&mut self, end: String) {
-        self.end = end;
+        if self.start.contains(&start) {
+            return;
+        }
+        self.start.push(start);
     }
 
-    pub fn extend(&mut self, head: &OutputHead<'a>) {
-        if !head.start.is_empty() {
-            self.start.push('\n');
-            self.start.push_str(head.start.trim());
+    pub fn end(&mut self, end: String) {
+        if self.end.contains(&end) {
+            return;
         }
-        for &h in &head.head {
-            if !self.head.contains(&h) {
-                self.head.push(h.trim());
-            }
-        }
-        if !head.end.is_empty() {
-            self.end.push('\n');
-            self.end.push_str(head.end.trim());
-        }
+        self.end.push(end);
     }
+
     pub fn push(&mut self, head: &'a str) {
+        let head = head.trim();
         if self.head.contains(&head) {
             return;
         }
@@ -178,9 +171,10 @@ impl<'a> OutputHead<'a> {
     }
 
     pub fn to_html(&self) -> String {
-        let mut vec = vec![self.start.as_str()];
+        let mut vec = vec![];
+        vec.extend(self.start.iter().map(|it| it.as_str()));
         vec.extend(self.head.iter());
-        vec.push(self.end.as_str());
+        vec.extend(self.end.iter().map(|it| it.as_str()));
         let head: String = vec
             .iter()
             .map(|it| format!("  {}", it.trim()))
@@ -209,8 +203,7 @@ impl<'a> OutputHtml<'a> {
         Self { head, body }
     }
 
-    pub fn extend(&mut self, html: &OutputHtml<'a>) {
-        self.head.extend(&html.head);
+    pub fn extend_body(&mut self, html: &OutputHtml<'a>) {
         self.body.push('\n');
         self.body.push_str(&html.body);
     }

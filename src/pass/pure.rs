@@ -49,7 +49,7 @@ pub struct PurePass<'a, 'k> {
     error: TypError,
     // article
     schema: Option<&'a Schema>,
-    head: String,
+    head: Vec<String>,
     body: BodyBuilder<'a>,
     used_rules: HashSet<&'a str>,
     dependency: HashMap<Source, HashSet<UpdatedIndex>>,
@@ -92,7 +92,7 @@ impl<'a, 'k> PurePassData<'a> {
     fn from(
         pure_pass: PurePass<'a, 'k>,
     ) -> (
-        String,
+        Vec<String>,
         BodyBuilder<'a>,
         TypError,
         Option<&'k Article<'a>>,
@@ -138,7 +138,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
     }
 
     fn article(
-        head: String,
+        head: Vec<String>,
         mut body: BodyBuilder<'a>,
         error: &mut TypError,
         cache: Option<&'k Article<'a>>,
@@ -216,7 +216,6 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
             Self::handle_head_end_tag,
             Self::push_head_buffer,
         )?;
-        self.push_head_buffer();
         self.visit_tag_block(
             &mut tokenizer,
             "body",
@@ -303,7 +302,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
             config,
             root: config.typst_path,
             registry,
-            head: String::new(),
+            head: Vec::new(),
             body: BodyBuilder::new(),
             buffer: String::new(),
             used_rules: HashSet::new(),
@@ -515,7 +514,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
             return;
         }
         let head = std::mem::take(&mut self.buffer);
-        self.head = format!("{}\n{}", self.head, head);
+        self.head.push(head);
     }
 
     fn push_body_buffer(&mut self) {

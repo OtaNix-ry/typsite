@@ -50,7 +50,7 @@ pub struct Article<'a> {
     // Article slug (URL)
     pub slug: Key,
     pub schema: &'a Schema,
-    pub head: String,
+    pub head: Vec<String>,
     metadata: Metadata<'a>,
     body: Body<'a>,
     full_sidebar: Sidebar,
@@ -130,7 +130,7 @@ impl<'c, 'b: 'c, 'a: 'b> Article<'a> {
         path: SlugPath,
         metadata: Metadata<'a>,
         schema: &'a Schema,
-        head: String,
+        head: Vec<String>,
         body: Body<'a>,
         full_sidebar: Sidebar,
         embed_sidebar: Sidebar,
@@ -261,7 +261,7 @@ pub struct PureArticle {
     #[serde(rename = "$schema")]
     schema: String,
     metadata: PureMetadata,
-    head: String,
+    head: Vec<String>,
 
     body: PureBody,
     full_sidebar: Sidebar,
