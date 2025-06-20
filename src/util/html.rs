@@ -479,7 +479,7 @@ where
 }
 
 pub fn html(head: &str, body: &str) -> String {
-    format!("<html>\n<head>\n{head}\n</head>\n<body>\n{body}\n</body>\n</html>")
+    format!("<!DOCTYPE html>\n<html lang=\"en-US\">\n<head>\n{head}\n</head>\n<body>\n{body}\n</body>\n</html>")
 }
 
 #[cfg(test)]
