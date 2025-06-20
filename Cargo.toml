@@ -16,7 +16,7 @@ type-complexity = "allow"
 
 [package]
 name = "typsite"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2024"
 
 [dependencies]
@@ -40,5 +40,6 @@ tokio = { version = "1", features = ["full","tracing"] }
 toml = "*"
 tracing = "*"
 plist = "*"
+home = "*"
 
 
