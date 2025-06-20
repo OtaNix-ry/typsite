@@ -1,4 +1,4 @@
-#import "../lib.typ": *
+#import "/lib/lib.typ": *
 
 #show: schema.with("page")
 
@@ -15,19 +15,19 @@ For a Chinese tutorial on Typst, I highly recommend: #link("https://typst-doc-cn
 (_Oh my, the author is *clearly aware* that they're explaining an *ontology*!_).
 
 \
-#text-align(center)[
+#html.align(center)[
 
-  #html-text(size: 52pt, weight: "bold", fill: rgb("#22D3EE"))[Typst]
+  #html.text(size: 52pt, weight: "bold", fill: rgb("#22D3EE"))[Typst]
   \
   \
-  #html-text(size: 38pt, fill: rgb("#22D3EE"))[🔥*has risen!*🔥]
+  #html.text(size: 38pt, fill: rgb("#22D3EE"))[🔥*has risen!*🔥]
   \
   \
   \
   \
   \
 
-  #html-text(size: 22pt, style: "italic", fill: red)[🚀Did the TeX folks miss the memo?🚀]
+  #html.text(size: 22pt, style: "italic", fill: red)[🚀Did the TeX folks miss the memo?🚀]
   \
   \
 ]
