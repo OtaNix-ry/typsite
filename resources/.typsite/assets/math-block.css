@@ -37,8 +37,8 @@
 }
 
 .math-block svg text {
-  user-select: contain;
   -webkit-user-select: text;
+  user-select: contain;
   cursor: text;
   paint-order: stroke;
   stroke-linejoin: round;
@@ -85,4 +85,12 @@
   .math-block:hover {
     transform: scale(1);
   }
+}
+
+ul + pre {
+  margin-top: 0.65em;
+}
+
+ul + pre + pre {
+  margin-top: 0.65em;
 }
