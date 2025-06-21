@@ -35,9 +35,9 @@
   - (注意不要把 `/lib/site.typ` 中的 `text-align` 替换掉了)
 
 推荐通过绝对路径去`import` `lib.typ`，如果您使用的是 #link("https://github.com/Myriad-Dreamin/tinymist")[tinymist] 作为LSP, 您需要指定 Typst 的 `root-path` 来获取更好的体验：
-- 在 VSCode 中，您可以在 `settings.json` 中添加如下配置：
+- 在 VSCode 中，您可以在 站点目录的 `.vscode/settings.json` 中添加如下配置：
   ```json
-  "tinymist.rootPath": "/root"
+  "tinymist.rootPath": "站点目录的绝对路径/root" 
   ```
 
 对于我在此没有预期到的 #breaking-changes ，您可以非常便捷地通过 `typsite compile --port 8000` 开启 `watch-mode`，typsite会在您每次修改文件时给予您错误提示，您可以根据提示进行修复。

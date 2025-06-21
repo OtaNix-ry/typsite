@@ -38,9 +38,9 @@ If you're relying on site libraries from before version #version, you'll need to
 
 It's recommended to import `lib.typ` using an absolute path. If you're using #link("https://github.com/Myriad-Dreamin/tinymist")[tinymist] as your LSP, you'll need to specify the Typst `root-path` for better experience:
 
-- In VSCode, you can add the following to `settings.json`:
+- In VSCode, you can add the following to `.vscode/settings.json` in your site directory:
   ```json
-  "tinymist.rootPath": "/root"
+  "tinymist.rootPath": "absolute path of your site/root" 
   ```
 
 For any #breaking-changes not anticipated here, you can easily detect them by launching `watch-mode` with `typsite compile --port 8000`. Typsite will provide helpful error messages whenever you modify a file, allowing you to fix issues quickly.
