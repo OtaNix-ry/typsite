@@ -18,6 +18,9 @@
     } else {
       lang = to-str(lang)
     }
+    if lang == "typc"{
+      return it
+    }
     let theme = default-code-highlight-theme
     let split = lang.split("--")
     if split.len() > 1 {

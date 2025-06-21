@@ -13,7 +13,8 @@
 
 This is a regular paragraph of text.
 
-This is #get-metacontent("LaTeX", from: "/index.typ")
+This is #LaTeX
+
 
 #html.align(center)[
 
@@ -29,6 +30,14 @@ This is #get-metacontent("LaTeX", from: "/index.typ")
 
 
 ]
+
+\
+
+#html.align(center)[
+  #html.text(size: 52pt)[#LaTeX |-> #html.text(fill: rgb("#22D3EE"))[Typst]]
+]
+
+\
 
 #html.align(center)[
   #html.text(

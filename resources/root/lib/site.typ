@@ -18,7 +18,7 @@
   link-external-style(href(url, content))
 }
 
-#let auto-filter(content) = html.span(class: "auto-filter", content)
+#let auto-filter(content) = html.span(class: "auto-filter", style: "display: inline-block;", content)
 
 
 #let inline-math(body, block: auto, scale: 100%) = {

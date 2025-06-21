@@ -11,7 +11,7 @@
 
 这是一段普通的文本.
 
-这是 #get-metacontent("LaTeX", from: "/index.typ")
+这是 #LaTeX
 
 #html.align(center)[
 
@@ -28,7 +28,13 @@
   \
 ]
 
+\
 
+#html.align(center)[
+  #html.text(size: 52pt)[#LaTeX |-> #html.text(fill: rgb("#22D3EE"))[Typst]]
+]
+
+\
 
 #html.align(center)[
   #html.text(size: 40pt)[#underline[我的]#highlight(fill: green.lighten(50%))[大树人]，#overline[没了]！#footnote(<np>)]

@@ -70,7 +70,7 @@
   let text-size = if type(size) == ratio {
     11pt * size
   } else if type(size) == length {
-    size
+    size * 0.75
   } else {
     panic("Invalid type " + type(size) + " for size: " + to-str([#size]))
   }
@@ -86,6 +86,7 @@
     return content
   }
   let styles = ()
+  styles.push("vertical-align: baseline;")
   if font != none {
     styles.push("font: " + font + ";")
   }
