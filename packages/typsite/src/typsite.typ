@@ -5,14 +5,14 @@
 // `~>` means that will be processed by typsite
 
 /// - name (str):
-///     The name of the schema to be included in the HTML document. 
+///     The name of the schema to be included in the HTML document.
 /// - body (content):
-///     The main content of the HTML document, which will be applied to the handle-body function. 
+///     The main content of the HTML document, which will be applied to the handle-body function.
 /// - head (content):
 ///     Additional content to be placed inside the `<head>` tag of the HTML document.
 /// - handle-body ((content) -> content):
 ///     A function that processes the body content before it is placed inside the HTML document.
-///     The returned content will be placed inside the `<body>` tag of the HTML document. 
+///     The returned content will be placed inside the `<body>` tag of the HTML document.
 /// -> HTML document with a schema ~> HTML Page
 #let schema(name, body, head, handle-body) = context {
   if target() != "html" {
@@ -36,9 +36,9 @@
 /// - id (str): id specified in the `.typsite/rewrite/*.html` with `<rewrite pass="rewrite-id" />`
 ///     The identifier for the rewrite
 /// - attrs (..):
-///     Additional attributes to be applied to the rewrite. 
+///     Additional attributes to be applied to the rewrite.
 /// - content (content):
-///     The content to be placed inside the rewrite element. 
+///     The content to be placed inside the rewrite element.
 /// -> typsite rewrite - (HTML element)
 #let rewrite(id, ..attrs, content) = html.tag(
   "rewrite",
@@ -51,7 +51,7 @@
 // `~>` means that will be processed by typsite
 
 /// Creates an anchor definition in HTML.
-/// 
+///
 /// - id (str):
 ///     The identifier for the anchor, which can be used to link to a specific section in the document.
 /// -> anchor definition component ~> anchor definition element
@@ -60,7 +60,7 @@
 }
 
 /// Creates an anchor goto in HTML.
-/// 
+///
 /// - id (str):
 ///     The identifier for the anchor, which can be used to link to a specific section in the document.
 /// - content (content):
@@ -74,8 +74,8 @@
 /// Creates an embed component in HTML.
 ///
 /// - slug (str):
-///     The slug of the embed, which is used to reference the embedded content. 
-/// - open (bool): 
+///     The slug of the embed, which is used to reference the embedded content.
+/// - open (bool):
 ///     A boolean indicating whether the embed is open or closed.
 /// - sidebar (str): "none" | "only-title" | "full"
 ///     The sidebar type for the embed, which can be "none", "only-title", or "full".
@@ -83,7 +83,7 @@
 ///     The level of the heading for the embed, which can be "child", "peer", or an exact heading level (1-6).
 ///     Or i.e., you can use a heading like `== #embed("./example.typ")` to set the heading level as `2`.
 /// - attrs (..):
-///     Additional attributes to be applied to the embed element. 
+///     Additional attributes to be applied to the embed element.
 ///     Values will be converted to string using `to-str` function.
 ///     You can use these attributes by `{key}` in the embed component config (.typsite/components/embed.html)
 /// -> embed component ~> HTML embed article  (not a `<embed>` tag)
@@ -125,9 +125,9 @@
 
 /// Creates a get-metacontent rewrite in HTML.
 ///   in some typsite HTML config, you can use `{meta-key}` to get the meta content.
-/// 
+///
 /// - meta-key (str):
-///     The key for the meta content, which can be used to retrieve or set specific metadata 
+///     The key for the meta content, which can be used to retrieve or set specific metadata
 /// - from (str): "$self" | "parent" | article slug
 ///     The source from which the meta content is retrieved or set.
 ///     If "parent", it will retrieve the meta content from the parent article.
@@ -145,7 +145,7 @@
 /// Creates a metacontent rewrite in HTML.
 ///
 /// - meta-key (str):
-///     The key for the meta content, which can be used to set specific metadata. 
+///     The key for the meta content, which can be used to set specific metadata.
 /// - content (content):
 ///     The content to be placed inside the metacontent element.
 ///     This content will be used as the value for the meta key.
@@ -162,7 +162,7 @@
 
 /// Set title metacontent in HTML.
 ///   in some typsite HTML config, you can use `{title}` to get this content.
-/// 
+///
 /// - content (content):
 ///     The content to be placed inside the title metacontent element.
 ///     Can contain complicated content, such as HTML elements.
@@ -173,7 +173,7 @@
 
 /// Set page-title metacontent in HTML.
 ///   in some typsite HTML config, you can use `{page-title}` to get this content.
-/// 
+///
 /// - content (content):
 ///     The content to be placed inside the page-title metacontent element.
 ///     This content is used to set the title of the page in the browser tab, do not use complicated content such as HTML tags.
@@ -183,7 +183,7 @@
 
 /// Set taxon metacontent in HTML.
 ///   in some typsite HTML config, you can use `{taxon}` to get this content.
-/// 
+///
 /// - content (content):
 ///     The content to be placed inside the taxon metacontent element.
 ///     This content is used to set the taxon of the article, which can be used for categorization or classification.
@@ -192,7 +192,7 @@
 
 /// Set author metacontent in HTML.
 ///   in some typsite HTML config, you can use `{author}` to get this content.
-/// 
+///
 /// - content (content):
 ///     The content to be placed inside the author metacontent element.
 ///     This content is used to set the author of the article, which can be a string or structured content.
@@ -201,7 +201,7 @@
 
 /// Set author metacontent in HTML.
 ///   in some typsite HTML config, you can use `{author}` to get this
-///   
+///
 /// - content (content):
 ///     The content to be placed inside the author metacontent element.
 ///     This content is used to set the author of the article, which can be a string or structured content.
@@ -211,7 +211,7 @@
 // MetaOption
 
 /// Set metaoption.
-/// 
+///
 /// - key (str):
 ///     The key for the meta option, which can be used to set specific metadata options.
 /// - value (str):
@@ -231,7 +231,7 @@
 
 
 
-/// Set metaoption of heading-numbering 
+/// Set metaoption of heading-numbering
 ///
 /// - type (str): "none" | "bullet" | "roman" | "alphabet"
 ///     The type of heading numbering to be applied to the article.
@@ -250,7 +250,7 @@
 
 
 /// Set sidebar metaoption.
-/// 
+///
 /// - type (str): "none" | "full" | "only-embed"
 ///    The type of sidebar to be applied to the article.
 ///      - "none" means no sidebar
@@ -272,7 +272,7 @@
 
 /// Set metagraph
 ///   This is used to store metadata in a graph-like structure.
-/// 
+///
 /// - key (str):
 ///     The key for the metagraph, which can be used to reference specific metadata.
 /// - attrs (..):
@@ -291,7 +291,7 @@
 
 /// Set parent metagraph
 ///  This is used to set the parent of the current article in the metagraph.
-/// 
+///
 /// - slug (str):
 ///    The slug of the parent article, which can be used to reference the parent article in the metagraph.
 /// -> set-metagraph parent tag ~> none
@@ -302,7 +302,7 @@
 
 
 /// Creates an auto-sized SVG style in HTML.
-/// 
+///
 /// - scale (ratio):
 ///     The scale factor for the SVG, which determines how the SVG content is scaled.
 ///     i.e., if scale is 100%, the SVG will be displayed at its original size.
@@ -313,27 +313,44 @@
 ///         - viewBox: none
 ///         - width: _ * scale
 ///         - height: _ * scale
-#let auto-sized-svg(scale, content) = html.span(class: "auto-sized-svg", scale: to-str([#scale]), content)
+#let auto-sized-svg(scale, content) = html.span(
+  class: "auto-sized-svg",
+  style: "display: inline-block; width: fit-content; height: fit-content; vertical-align: middle;",
+  scale: to-str([#scale]),
+  content,
+)
 
 
 #let inline-content = state("inline-content", false)
 
 /// Creates an inline-scaled content in HTML.
 ///   This is used to inline the content as svg, with a scale factor.
+/// - fit-font (bool):
+///     A boolean indicating whether the content should fit the context font size.
 /// - scale (ratio):
 ///     The scale factor for the content, which determines how the content is scaled.
+///     This will be based on the context font size if `fit-font` is true.
 ///     i.e., if scale is 100%, the content will be displayed at its original
+/// - content (content):
+///     The content to be placed inside the inline-scaled element.
 /// -> inline-scaled content ~> HTML svg (auto-sized)
-#let inline(scale: 100%, content) = context {
-  let content = std.scale(scale, origin: left + top, content)
+#let inline(fit-font: false, scale: 100%, content) = context {
+  let size = measure(content)
+  let scale = scale
+  if fit-font {
+    let width-ratio = text.size / (size.width) * 100%
+    let height-ratio = text.size / (size.height) * 100%
+    scale = calc.max(width-ratio, height-ratio) * 1.85 * scale
+  }
+  let content = if size.width == 0 or size.height == 0 {
+    content
+  } else {
+    std.scale(scale, origin: left + top, content)
+  }
+
   if target() != "html" {
     return content
   }
-  let size = measure(content)
-  let width = size.width * scale
-  let height = size.height * scale
-  let width = if width == 0pt { auto } else { width }
-  let height = if height == 0pt { auto } else { height }
   let content = [
     #inline-content.update(true)
     #auto-sized-svg(scale, html.frame(content))
