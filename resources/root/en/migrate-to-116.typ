@@ -48,8 +48,8 @@ For any #breaking-changes not anticipated here, you can easily detect them by la
 = Other Updates
 
 - Added support for converting Typst math to MathML.
-
   - This improves the rendering of math formulas, and the MathML conversion will detect Typst math fonts in-place for compatibility.
+- `inline` function has a new `fit-font` parameter, which can adapt to Typst's `context text.size`.
 - For pages containing backlinks and references, duplicate tags in the `<head>` section are now removed, resulting in a much cleaner structure.
 - In the default site library, `show-rules` have been modularized. You can easily add/remove/modify `show-rule` items in `/lib/lib.typ`.
 - In the default site configuration, link titles have been optimized. You can now preview links as `Link Title [Link URL]`.
