@@ -56,6 +56,12 @@ impl MetaNode {
             children: children.into_iter().flatten().collect(),
         })
     }
+    pub fn refs_and_backlinks(&self) -> HashSet<&Key> {
+        self.references
+            .iter()
+            .chain(self.backlinks.iter())
+            .collect::<HashSet<_>>()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

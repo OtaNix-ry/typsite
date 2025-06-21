@@ -49,7 +49,7 @@ pub struct PurePass<'a, 'k> {
     error: TypError,
     // article
     schema: Option<&'a Schema>,
-    head: String,
+    head: Vec<String>,
     body: BodyBuilder<'a>,
     used_rules: HashSet<&'a str>,
     dependency: HashMap<Source, HashSet<UpdatedIndex>>,
@@ -92,7 +92,7 @@ impl<'a, 'k> PurePassData<'a> {
     fn from(
         pure_pass: PurePass<'a, 'k>,
     ) -> (
-        String,
+        Vec<String>,
         BodyBuilder<'a>,
         TypError,
         Option<&'k Article<'a>>,
@@ -128,8 +128,8 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
     pub fn run(mut self, tokenizer: HtmlTokenizer<StringReader<'b>>) -> TypResult<Article<'a>> {
         let result = self.visit_html(tokenizer);
         self.result(result);
-        let (head, body, mut error,cache, data) = PurePassData::from(self);
-        match Self::article(head, body, &mut error,cache, data) {
+        let (head, body, mut error, cache, data) = PurePassData::from(self);
+        match Self::article(head, body, &mut error, cache, data) {
             Ok(article) if !error.has_error() => return Ok(article),
             Err(err) => error.add(err),
             _ => {}
@@ -138,7 +138,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
     }
 
     fn article(
-        head: String,
+        head: Vec<String>,
         mut body: BodyBuilder<'a>,
         error: &mut TypError,
         cache: Option<&'k Article<'a>>,
@@ -148,7 +148,10 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         let slug = data.slug;
         let path = data.path;
         let schema = data.schema.context("No schema, skip..")?;
-        let metadata = data.metadata.build(slug.clone(), cache.as_ref().map(|it| it.get_meta_contents()))?;
+        let metadata = data.metadata.build(
+            slug.clone(),
+            cache.as_ref().map(|it| it.get_meta_contents()),
+        )?;
         let (mut full_sidebar, mut embed_sidebar) = data.sidebar.build(&data.config.sidebar);
         let (body_content, body_rewriters, embeds) = body.build(
             &mut |pos| full_sidebar.titles.remove(&pos).unwrap(),
@@ -211,34 +214,36 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
             Tokenizer::<HeadTag>::next,
             Self::handle_head_start_tag,
             Self::handle_head_end_tag,
+            Self::push_head_buffer,
         )?;
-        self.push_head_buffer();
         self.visit_tag_block(
             &mut tokenizer,
             "body",
             Tokenizer::<BodyTag>::next,
             Self::handle_body_start_tag,
             Self::handle_body_end_tag,
+            Self::push_body_buffer,
         )?;
-        self.push_body_buffer();
         while let Some(level) = self.heading_level_backtrace.pop() {
             self.push_section_end(level);
         }
         Ok(())
     }
 
-    fn visit_tag_block<T: Label, Next, Start, End>(
+    fn visit_tag_block<T: Label, Next, Start, End, Buffer>(
         &mut self,
         tokenizer: &'c mut PeekableTokenizer<'b>,
         tag: &str,
         mut next: Next,
         mut handle_start: Start,
         mut handle_end: End,
+        mut buffer: Buffer,
     ) -> Result<()>
     where
         Next: FnMut(&mut Tokenizer<'b, 'c, T>) -> Option<Result<Event<T>>>,
         Start: FnMut(&mut Self, T) -> Result<()>,
         End: FnMut(&mut Self, T) -> Result<()>,
+        Buffer: FnMut(&mut Self),
     {
         self.skip = None;
         expect_start(tokenizer, tag)?;
@@ -249,20 +254,29 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
             let event = token.context("Error occurred while tokenizing")?;
             let result = match event {
                 Event::Eof => {
+                    buffer(self);
                     end = true;
                     break;
                 }
                 Event::End(tag) => {
+                    buffer(self);
                     let name = tag.name();
-                    if let Some(skip) = &self.skip
-                        && name == skip.as_str()
-                    {
-                        self.skip = None;
+                    if let Some(skip) = &self.skip {
+                        if name == skip.as_str() {
+                            self.skip = None;
+                            handle_end(self, tag)
+                        } else {
+                            Ok(())
+                        }
+                    } else {
+                        handle_end(self, tag)
                     }
-                    handle_end(self, tag)
                 }
                 _ if self.skip.is_some() => Ok(()),
-                Event::Start(tag) => handle_start(self, tag),
+                Event::Start(tag) => {
+                    buffer(self);
+                    handle_start(self, tag)
+                }
                 Event::Other(tag) => write_token(&mut self.buffer, &tag),
             };
             self.result(result);
@@ -288,7 +302,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
             config,
             root: config.typst_path,
             registry,
-            head: String::new(),
+            head: Vec::new(),
             body: BodyBuilder::new(),
             buffer: String::new(),
             used_rules: HashSet::new(),
@@ -309,7 +323,6 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
     }
 
     fn add_anchor(&mut self, kind: AnchorKind, id: String) {
-        self.push_body_buffer();
         let anchor = self.config.anchor.get(kind, None, id.as_str());
         self.push_plain(anchor);
         let index = self.body.body_index();
@@ -342,7 +355,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
                     .config
                     .rules
                     .get(tag.as_str())
-                    .context(format!("No rewrite rule named {tag}"))?;
+                    .with_context(|| format!("No rewrite rule named {tag}"))?;
                 let tag_name = self.config.rules.rule_name(&tag).unwrap();
                 self.used_rules.insert(tag_name);
 
@@ -394,7 +407,6 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
                 self.add_anchor(AnchorKind::GotoHead, id);
             }
             BodyTag::AnchorDef { id } => {
-                self.push_body_buffer();
                 self.add_anchor(AnchorKind::Define, id);
             }
 
@@ -416,21 +428,18 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
                     .config
                     .rules
                     .get(tag.as_str())
-                    .context(format!("No rewrite rule named {tag}"))?;
+                    .with_context(|| format!("No rewrite rule named {tag}"))?;
                 let tag_name = self.config.rules.rule_name(tag.as_str()).unwrap();
                 self.push_rewriter_end(tag_name, rule)?;
             }
             BodyTag::MetaContentSet { .. } if self.metadata.meta_key.is_some() => {
-                self.push_body_buffer();
                 let plain_buffer = std::mem::take(&mut self.content_buffer);
                 self.metadata.emit_metacontent_end(plain_buffer);
             }
             BodyTag::AnchorGoto { id } => {
-                self.push_body_buffer();
                 self.add_anchor(AnchorKind::GotoTail, id.to_string());
             }
             BodyTag::Section { heading_level } => {
-                self.push_body_buffer();
                 self.sidebar_pos = None;
                 self.push_section_start(heading_level);
                 let buffer = std::mem::take(&mut self.content_buffer);
@@ -481,10 +490,12 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         let path = resolve_path(self.root, self.path.parent().unwrap(), slug_path)?;
         let slug = self.config.path_to_slug(path.as_path())?;
 
-        self.registry.slug(slug.as_str()).context(format!(
-            "Failed to resolve slug {slug_path} in {}  ({tag})",
-            self.slug
-        ))
+        self.registry.slug(slug.as_str()).with_context(|| {
+            format!(
+                "Failed to resolve slug {slug_path} in {}  ({tag})",
+                self.slug
+            )
+        })
     }
 
     fn push_meta_or_sidebar_plain(&mut self, text: &str) -> bool {
@@ -503,7 +514,7 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
             return;
         }
         let head = std::mem::take(&mut self.buffer);
-        self.head = head;
+        self.head.push(head);
     }
 
     fn push_body_buffer(&mut self) {
@@ -526,7 +537,6 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
     }
 
     fn push_plain(&mut self, plain: String) {
-        self.push_body_buffer();
         if self.push_meta_or_sidebar_plain(plain.as_str()) {
             return;
         }
@@ -542,7 +552,6 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
     where
         F: FnOnce(HashMap<String, String>, Option<(Pos, usize)>, usize) -> RewriterBuilder<'a>,
     {
-        self.push_body_buffer();
         let sidebar_pos = self.sidebar_pos.clone();
         let index = if self.metadata.meta_key.is_some() {
             self.content_buffer.len()
@@ -609,8 +618,6 @@ impl<'a, 'b, 'c, 'k> PurePass<'a, 'k> {
         sidebar: String,
         heading_level: usize,
     ) -> Result<()> {
-        self.push_body_buffer();
-
         let slug = self.resolve_slug(&url, "Embed");
         let slug = match slug {
             Ok(slug) => slug,

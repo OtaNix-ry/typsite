@@ -6,6 +6,10 @@
 <img src="./icon.png" width="37.5%"/>
 </div>
 
+<div style="text-align: center;">
+<a href="https://typ.rowlib.com/migrate-to-116" title="迁移到 Typsite 1.1.6 [https://typ.rowlib.com/migrate-to-116]">迁移到 Typsite <span style="color: #22d3ee;">1.1.6</span></a>
+</div>
+
 ## 1. 介绍
 
 Typsite 是一个用于构建静态网站的工具，其文章内容由纯 `Typst` 编写，经由 `Typsite` 进行处理后，最终生成一个健全的静态站点。
@@ -16,7 +20,9 @@ Typsite 是一个用于构建静态网站的工具，其文章内容由纯 `Typs
 - `Typst` 的常规表达
 - 框架: 标题递增、小节模板、侧边栏、页脚
 - 富文本：段落、小节、引用、代码块、数学公式、注脚、页面嵌入
+- 将 Typst math 转换为 Mathml （自动检测math-font)
 - 支持现代 Web 技术规范，如 HTML5、CSS3 和 JavaScript（ES6+）
+- 自动安装 typst-packages, 在 watch-mode 下自动同步包文件
 - 增量编译, 实时预览
 
 ## 3. Typst 简介
@@ -73,4 +79,4 @@ nix build .
 来和我一起壮大typsite!
 
 ## 鸣谢
-- [kokic](https://github.com/kokic) : [Kodama](https://github.com/kokic/kodama) for **Markdown + Typst + LaTeX SSG**
+- [kokic](https://github.com/kokic) : [kodama](https://github.com/kokic/kodama) for **Markdown + Typst + LaTeX SSG**

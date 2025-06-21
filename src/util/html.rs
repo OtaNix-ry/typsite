@@ -33,7 +33,8 @@ impl Attributes {
             .attrs
             .remove(&HtmlString::from(key.as_bytes().to_vec()))
         {
-            Ok(String::from_utf8(html.0).context(format!("Attribute {key} parsing failed"))?)
+            Ok(String::from_utf8(html.0)
+                .with_context(|| format!("Attribute {key} parsing failed"))?)
         } else {
             Err(anyhow!("Attribute {} not found", key))
         }
@@ -53,7 +54,7 @@ impl Attributes {
             .into_iter()
             .map(|(key, value)| {
                 (
-                    format!("{{{}}}",html_as_str(&key)),
+                    format!("{{{}}}", html_as_str(&key)),
                     html_as_str(&value).to_string(),
                 )
             })
@@ -133,43 +134,36 @@ impl<'ce> Deserialize<'ce> for Attributes {
 
 #[derive(Debug, Clone)]
 pub struct OutputHead<'a> {
-    start: String,
+    start: Vec<String>,
     head: Vec<&'a str>,
-    end: String,
+    end: Vec<String>,
 }
 
 impl<'a> OutputHead<'a> {
     pub fn empty() -> Self {
         Self {
-            start: String::new(),
+            start: Vec::new(),
             head: Vec::new(),
-            end: String::new(),
+            end: Vec::new(),
         }
     }
 
     pub fn start(&mut self, start: String) {
-        self.start = start;
-    }
-    pub fn end(&mut self, end: String) {
-        self.end = end;
+        if self.start.contains(&start) {
+            return;
+        }
+        self.start.push(start);
     }
 
-    pub fn extend(&mut self, head: &OutputHead<'a>) {
-        if !head.start.is_empty() {
-            self.start.push('\n');
-            self.start.push_str(head.start.trim());
+    pub fn end(&mut self, end: String) {
+        if self.end.contains(&end) {
+            return;
         }
-        for &h in &head.head {
-            if !self.head.contains(&h) {
-                self.head.push(h.trim());
-            }
-        }
-        if !head.end.is_empty() {
-            self.end.push('\n');
-            self.end.push_str(head.end.trim());
-        }
+        self.end.push(end);
     }
+
     pub fn push(&mut self, head: &'a str) {
+        let head = head.trim();
         if self.head.contains(&head) {
             return;
         }
@@ -177,9 +171,10 @@ impl<'a> OutputHead<'a> {
     }
 
     pub fn to_html(&self) -> String {
-        let mut vec = vec![self.start.as_str()];
+        let mut vec = vec![];
+        vec.extend(self.start.iter().map(|it| it.as_str()));
         vec.extend(self.head.iter());
-        vec.push(self.end.as_str());
+        vec.extend(self.end.iter().map(|it| it.as_str()));
         let head: String = vec
             .iter()
             .map(|it| format!("  {}", it.trim()))
@@ -208,8 +203,7 @@ impl<'a> OutputHtml<'a> {
         Self { head, body }
     }
 
-    pub fn extend(&mut self, html: &OutputHtml<'a>) {
-        self.head.extend(&html.head);
+    pub fn extend_body(&mut self, html: &OutputHtml<'a>) {
         self.body.push('\n');
         self.body.push_str(&html.body);
     }
@@ -233,9 +227,9 @@ impl Html {
     where
         F: FnMut(Token) -> Result<()>,
     {
-        let file = File::open(path).context(format!("Cannot find the path: {path:?}"))?;
+        let file = File::open(path).with_context(|| format!("Cannot find the path: {path:?}"))?;
         let reader = read_to_string(BufReader::new(file))
-            .context(format!("Cannot read the file {path:?}"))?;
+            .with_context(|| format!("Cannot read the file {path:?}"))?;
         Self::load_by_tokenizer_with_body_callback(Tokenizer::new(&reader), body_callback)
     }
     pub fn load_by_tokenizer_with_body_callback<F>(
@@ -256,9 +250,9 @@ impl Html {
         Ok(Self::new(head, body))
     }
     pub fn load(path: &Path) -> Result<Self> {
-        let file = File::open(path).context(format!("Cannot find the path: {path:?}"))?;
+        let file = File::open(path).with_context(|| format!("Cannot find the path: {path:?}"))?;
         let reader = read_to_string(BufReader::new(file))
-            .context(format!("Cannot read the file {path:?}"))?;
+            .with_context(|| format!("Cannot read the file {path:?}"))?;
         Self::load_by_tokenizer(Tokenizer::new(&reader))
     }
 
@@ -292,9 +286,9 @@ pub struct HtmlWithTail {
 
 impl HtmlWithTail {
     pub fn load(path: &Path, delimiter: &str) -> Result<Self> {
-        let file = File::open(path).context(format!("Cannot find the path: {path:?}"))?;
+        let file = File::open(path).with_context(|| format!("Cannot find the path: {path:?}"))?;
         let reader = read_to_string(BufReader::new(file))
-            .context(format!("Cannot read the file {path:?}"))?;
+            .with_context(|| format!("Cannot read the file {path:?}"))?;
         Self::load_by_tokenizer(Tokenizer::new(&reader), delimiter)
     }
 
@@ -485,7 +479,7 @@ where
 }
 
 pub fn html(head: &str, body: &str) -> String {
-    format!("<html>\n<head>\n{head}\n</head>\n<body>\n{body}\n</body>\n</html>")
+    format!("<!DOCTYPE html>\n<html lang=\"en-US\">\n<head>\n{head}\n</head>\n<body>\n{body}\n</body>\n</html>")
 }
 
 #[cfg(test)]

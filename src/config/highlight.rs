@@ -149,9 +149,9 @@ fn load_themes(themes_path: PathBuf) -> ThemePaths {
         .map(|path| {
             let name = file_stem(&path)
                 .map(|s| s.to_string())
-                .context(format!("Failed to load theme {}", path.display()));
+                .with_context(|| format!("Failed to load theme {}", path.display()));
             let theme = ThemeSet::get_theme(&path)
-                .context(format!("Failed to load theme {}", path.display()));
+                .with_context(|| format!("Failed to load theme {}", path.display()));
             name.and_then(|name| theme.map(|theme| (name, (Arc::from(path), theme))))
         })
         .filter_map(log_err_or_ok)
@@ -168,10 +168,10 @@ impl Syntaxes {
             .filter(|entry| entry.is_file())
             .map(|path| {
                 fs::read_to_string(&path)
-                    .context(format!("Failed to load syntax {}", path.display()))
+                    .with_context(|| format!("Failed to load syntax {}", path.display()))
                     .and_then(|content| {
                         SyntaxDefinition::load_from_str(&content, true, None)
-                            .context(format!("Failed to load syntax {}", path.display()))
+                            .with_context(|| format!("Failed to load syntax {}", path.display()))
                     })
                     .map(|syntax| (syntax.name.clone(), (path, syntax)))
             })
@@ -199,7 +199,7 @@ impl Syntaxes {
             .filter(|entry| entry.is_file())
             .map(|path| {
                 RawMetadataEntry::load(&path)
-                    .context(format!("Failed to load tmPreferences {}", path.display()))
+                    .with_context(|| format!("Failed to load tmPreferences {}", path.display()))
                     .map(|metadata| (path, metadata))
             })
             .filter_map(log_err_or_ok)

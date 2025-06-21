@@ -7,7 +7,6 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-
 pub struct Dependency {
     dependency: HashMap<Source, HashSet<UpdatedIndex>>,
 }
@@ -42,7 +41,10 @@ impl Dependency {
             .collect()
     }
     pub fn articles(&self) -> HashSet<Key> {
-        self.dependency.iter().filter_map(|(source,_)| source.article()).collect()
+        self.dependency
+            .iter()
+            .filter_map(|(source, _)| source.article())
+            .collect()
     }
 
     pub fn new(dependency: HashMap<Source, HashSet<UpdatedIndex>>) -> Self {
@@ -98,16 +100,16 @@ impl Source {
                 Ok(Source::Article(registry.know(slug, "Source", self_slug)?))
             }
             PureSource::Path(path) => {
-                Ok(Source::Path(config.path_ref(&path).context(format!(
-                    "Path {path:?} not found in {self_slug}"
-                ))?))
+                Ok(Source::Path(config.path_ref(&path).with_context(|| {
+                    format!("Path {path:?} not found in {self_slug}")
+                })?))
             }
         }
     }
-    pub fn article(&self)-> Option<Key>{
+    pub fn article(&self) -> Option<Key> {
         match self {
             Source::Article(key) => Some(key.clone()),
-            _ => None
+            _ => None,
         }
     }
 }

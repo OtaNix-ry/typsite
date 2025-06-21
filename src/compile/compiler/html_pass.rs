@@ -33,7 +33,7 @@ pub fn pass_html<'b, 'a: 'b>(
         .map(|(i, result)| match result {
             Ok((slug, typst_path, html_path)) => {
                 let result = fs::read_to_string(html_path)
-                    .context(format!("Read file {html_path:?} failed."))
+                    .with_context(|| format!("Read file {html_path:?} failed."))
                     .map(|html| {
                         let cache = cache.get(&slug);
                         pass_pure(config, registry, typst_path, slug.clone(),cache, &html)

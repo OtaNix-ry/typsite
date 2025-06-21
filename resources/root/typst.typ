@@ -1,5 +1,5 @@
 
-#import "lib.typ": *
+#import "/lib/lib.typ": *
 
 #show : schema.with("page")
 
@@ -15,19 +15,19 @@ Typst 是一种现代化的排版系统，类似于 LaTeX，但设计更为简�
 对于Typst的中文教程，我强烈推荐：#link("https://typst-doc-cn.github.io/tutorial/introduction.html")[Typst 蓝书]\(_天呐，这位编者非常清楚地知道自己是在阐述一套*本体论*!_\).
 
 \
-#text-align(center)[
+#html.align(center)[
 
-  #html-text(size: 52pt, weight: "bold", fill: rgb("#22D3EE"))[Typst]
+  #html.text(size: 52pt, weight: "bold", fill: rgb("#22D3EE"))[Typst]
   \
   \
-  #html-text(size: 38pt, fill: rgb("#22D3EE"))[🔥*已经崛起了!*🔥]
+  #html.text(size: 38pt, fill: rgb("#22D3EE"))[🔥*已经崛起了!*🔥]
   \
   \
   \
   \
   \
 
-  #html-text(size: 22pt, style: "italic", fill: red)[🚀这TeX人没收到通知吗？🚀]
+  #html.text(size: 22pt, style: "italic", fill: red)[🚀这TeX人没收到通知吗？🚀]
   \
   \
 ]

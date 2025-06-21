@@ -142,6 +142,65 @@ impl<'c, 'b: 'c, 'a: 'b> GlobalData<'a, 'b, 'c> {
         })
     }
 
+    pub fn init_component_head(&'c self, article: &'b Article<'a>, head: &mut OutputHead<'a>) {
+        let schema = article.schema;
+        let metadata = article.get_metadata();
+        head.push(self.config.section.head.as_str());
+        head.push(self.config.heading_numbering.head.as_str());
+
+        if schema.sidebar {
+            head.push(self.config.sidebar.each.head.as_str());
+            head.push(self.config.sidebar.block.head.as_str());
+        }
+
+        if !metadata.node.children.is_empty() {
+            head.push(self.config.embed.embed.head.as_str());
+            head.push(self.config.embed.embed_title.head.as_str());
+        }
+
+        if !article.get_anchors().is_empty() {
+            head.push(self.config.anchor.define.head.as_str());
+            head.push(self.config.anchor.goto.head.as_str());
+        }
+    }
+    pub fn init_rewrite_head(&'c self, article: &'b Article<'a>, head: &mut OutputHead<'a>) {
+        let metadata = article.get_metadata();
+        let mut rules = article.all_used_rules(self).clone();
+
+        rules.extend(
+            metadata
+                .node
+                .refs_and_backlinks()
+                .into_iter()
+                .filter_map(|slug| self.article(slug))
+                .map(|article| article.all_used_rules(self))
+                .flatten(),
+        );
+        {
+            let mut heads = HashSet::new();
+            for rule_id in rules.iter() {
+                let rule = self.config.rules.get(rule_id).unwrap();
+                heads.insert(&rule.head);
+            }
+            for rule_head in heads {
+                head.push(rule_head.as_str());
+            }
+        }
+    }
+
+    pub fn init_article_head(&'c self, article: &'b Article<'a>, head: &mut OutputHead<'a>) {
+        let metadata = article.get_metadata();
+        article.head.iter().for_each(|it| head.end(it.to_string()));
+        metadata
+            .node
+            .refs_and_backlinks()
+            .into_iter()
+            .filter_map(|slug| self.article(slug))
+            .map(|article| &article.head)
+            .flatten()
+            .for_each(|it| head.end(it.to_string()));
+    }
+
     pub fn init_html_head(&'c self, article: &'b Article<'a>) -> &'b OutputHead<'a> {
         article.cache.html_head.get_or_init(|| {
             let metadata = article.get_metadata();
@@ -151,40 +210,21 @@ impl<'c, 'b: 'c, 'a: 'b> GlobalData<'a, 'b, 'c> {
             // Head
             head.start(metadata.inline(schema.head.as_str()));
 
-            head.push(self.config.section.head.as_str());
-            head.push(self.config.heading_numbering.head.as_str());
-
-            if schema.sidebar {
-                head.push(self.config.sidebar.each.head.as_str());
-                head.push(self.config.sidebar.block.head.as_str());
-            }
-
-            if !metadata.node.children.is_empty() {
-                head.push(self.config.embed.embed.head.as_str());
-                head.push(self.config.embed.embed_title.head.as_str());
-            }
-
-            if !article.get_anchors().is_empty() {
-                head.push(self.config.anchor.define.head.as_str());
-                head.push(self.config.anchor.goto.head.as_str());
-            }
+            self.init_component_head(article, &mut head);
+            metadata
+                .node
+                .refs_and_backlinks()
+                .into_iter()
+                .filter_map(|slug| self.article(slug))
+                .for_each(|article| self.init_component_head(article, &mut head));
 
             if compile_options().unwrap().watch {
                 head.push(WATCH_AUTO_RELOAD_SCRIPT.as_str());
             }
 
-            let rules = article.all_used_rules(self);
-            {
-                let mut heads = HashSet::new();
-                for rule_id in rules.iter() {
-                    let rule = self.config.rules.get(rule_id).unwrap();
-                    heads.insert(&rule.head);
-                }
-                for rule_head in heads {
-                    head.push(rule_head.as_str());
-                }
-            }
-            head.end(article.head.trim().to_string());
+            self.init_rewrite_head(article, &mut head);
+
+            self.init_article_head(article, &mut head);
             head
         })
     }

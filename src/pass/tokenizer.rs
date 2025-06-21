@@ -336,19 +336,19 @@ fn emit_body_next(
 }
 
 const CLASS_KEY: &[u8] = b"class";
-const AUTO_SVG_KEY: &[u8] = b"auto-svg";
+const AUTO_SVG_KEY: &[u8] = b"auto-svg"; // will be removed 10 versions later
+const AUTO_SIZED_SVG_KEY: &[u8] = b"auto-sized-svg";
 const SCALE_KEY: &[u8] = b"scale";
 const TYPST_DOC_KEY: &[u8] = b"typst-doc";
 const WIDTH_KEY: &[u8] = b"width";
 const HEIGHT_KEY: &[u8] = b"height";
-const VIEW_BOX_KEY: &[u8] = b"viewBox";
-const VIEW_BOX_VALUE: &[u8] = b"0, 0, 100%, 100%";
+const VIEW_BOX_KEY: &[u8] = b"viewbox";
 const PT_OVER_PX: f64 = 3.0 / 4.0;
 
 fn scale(attrs: &mut BTreeMap<HtmlString, HtmlString>, key: &[u8], ratio: f64) -> Result<()> {
     let origin = attrs
         .get(key)
-        .context(format!("Expect an attribute of {key:#?} in auto-svg tag"))?;
+        .with_context(|| format!("Expect an attribute of {key:#?} in auto-svg tag"))?;
     let origin = html_as_str(origin).to_string();
     if !origin.ends_with("pt") {
         return Err(anyhow!("Cannot pass {key:#?} using units other than pt"));
@@ -365,11 +365,11 @@ fn emit_other_start(
     mut start_tag: StartTag,
 ) -> Result<Option<Event<BodyTag>>> {
     match name.as_str() {
-        "span" if matches!(start_tag.attributes.get(CLASS_KEY),Some(class) if class == &AUTO_SVG_KEY) =>
+        "span" if matches!(start_tag.attributes.get(CLASS_KEY),Some(class) if class == &AUTO_SVG_KEY || class == &AUTO_SIZED_SVG_KEY) =>
         {
-            let scale = start_tag.attributes.get(SCALE_KEY).context(format!(
-                "Expect an attribute of {SCALE_KEY:#?} in auto-svg tag"
-            ))?;
+            let scale = start_tag.attributes.get(SCALE_KEY).with_context(|| {
+                format!("Expect an attribute of {SCALE_KEY:#?} in auto-sized-svg tag")
+            })?;
             let scale = html_as_str(scale).to_string();
             let scale = scale[0..scale.len() - 1].parse::<f64>()? / 100.0;
             state.auto_svg = Some(scale)
@@ -380,7 +380,8 @@ fn emit_other_start(
         {
             if let Some(ratio) = state.auto_svg {
                 let svg = &mut start_tag.attributes;
-                svg.insert(VIEW_BOX_KEY.to_vec().into(), VIEW_BOX_VALUE.to_vec().into());
+                let view_box_key: HtmlString = VIEW_BOX_KEY.to_vec().into();
+                svg.remove(&view_box_key);
                 scale(svg, WIDTH_KEY, ratio)?;
                 scale(svg, HEIGHT_KEY, ratio)?;
                 state.auto_svg = None;

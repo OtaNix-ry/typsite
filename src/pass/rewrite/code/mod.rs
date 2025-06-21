@@ -36,16 +36,16 @@ impl TagRewritePass for CodeBlockPass {
         if !config.is_syntax_by_default(lang) {
             let syntax = config
                 .find_syntax_path(lang)
-                .context(format!("Can't find syntax path for lang {lang}"))?;
+                .with_context(|| format!("Can't find syntax path for lang {lang}"))?;
             path.insert(Source::Path(syntax));
             for metadata_path in config.metadata_paths() {
                 path.insert(Source::Path(metadata_path));
             }
         }
         let theme = attrs.get("theme").unwrap();
-        let (light, dark) = config.find_theme_path_pair(theme).context(format!(
-            "Can't find theme path pair(light & dark) for theme {theme}"
-        ))?;
+        let (light, dark) = config.find_theme_path_pair(theme).with_context(|| {
+            format!("Can't find theme path pair(light & dark) for theme {theme}")
+        })?;
         path.insert(Source::Path(light.clone()));
         path.insert(Source::Path(dark.clone()));
         Ok(path)

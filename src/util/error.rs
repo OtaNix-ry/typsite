@@ -31,3 +31,8 @@ pub fn log_err<T, E: std::fmt::Debug>(result: anyhow::Result<T, E>) {
         Err(e) => eprintln!("[WARN] {e:?}"),
     }
 }
+
+pub fn padding_error(error: &anyhow::Error, padding:&str) -> String{
+    error.to_string().lines().map(|it| format!("{padding}{it}")).collect::<Vec<String>>().join("\n")
+}
+

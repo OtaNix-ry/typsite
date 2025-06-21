@@ -19,7 +19,6 @@ pub mod embed;
 pub mod footer;
 pub mod heading_numbering;
 pub mod highlight;
-pub mod resources;
 pub mod rewrite;
 pub mod schema;
 pub mod section;

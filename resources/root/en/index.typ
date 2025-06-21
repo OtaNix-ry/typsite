@@ -1,15 +1,15 @@
-#import "../lib.typ": *
+#import "/lib/lib.typ": *
 
 #show: schema.with("page")
-
-#import "../index.typ": process
 
 
 #title[Typsite Documentation]
 #date[2025-04-12 02:08]
 #author[Glomzzz]
 
-#inline(alignment: center,scale: 37.5%,image("../icon.png"))
+#get-metacontent("icon", from: "/index.typ")
+
+#html.align(center)[ #cite-title("./migrate-to-116.typ") ]
 
 = Introduction
 *Typsite* is a tool for building static websites. It uses pure *Typst* to write content and processes it through *Typsite* to generate a fully functional static site.
@@ -19,6 +19,7 @@
 - Standard *Typst* expressions
 - Framework support: hierarchical headings, section templates, sidebar, footer
 - Rich text: paragraphs, sections, quotes, code blocks, math formulas, footnotes, page embedding
+- Typst math -> Mathml （auto detected math-font)
 - Supports modern web standards such as HTML5, CSS3, and JavaScript (ES6+)
 - Incremental compilation and real-time preview
 
@@ -72,29 +73,10 @@ Run `typsite init` to initialize a Typsite project in the current directory.
 #show: frame-style(styles.boxy)
 
 Typsite is compatible with most native *Typst* syntax:
-#inline(scale: 150%, alignment: center)[
-  #table(
-    columns: (auto, auto, auto, auto),
-    stroke: 0.4pt,
-    fill: white,
-    align: center,
-    [*Element*], [*Support Status*], [*Element*], [*Support Status*],
-    [`heading`], [#text(fill: blue.lighten(50%), [*t*])], [`par`], [#text(fill: blue.lighten(50%), [*t*])],
-    [`text`], [#text(fill: blue.lighten(50%), [*t*])], [`strong`], [#text(fill: blue.lighten(50%), [*t*])],
-    [`list`], [#text(fill: blue.lighten(50%), [*t*])], [`emph`], [✅],
-    [`overline`], [✅], [`underline`], [✅],
-    [`super`], [✅], [`sub`], [✅],
-    [`raw`], [✅], [`link`], [✅],
-    [`label`], [✅], [`ref`], [✅],
-    [`footnote`], [✅], [`math.equation`], [✅],
-    [`highlight`], [✅], [`text with color`], [✅],
-    [`align`#super[1]], [inline#super[2]], [`strike`], [inline],
-    [`table`], [inline], [`terms`], [inline],
-    [`figure`], [inline],
-  )
-]
 
-#footnote[For `align`, please use the `text-align` function from the library] <align>
+#get-metacontent("typst-support", from: "/index.typ")
+
+#footnote[For `align`, please use the `html.align` function from the library] <align>
 #footnote[For complex styled elements, use the `inline` function for *SVG* embedding]
 
 = CLI (Command Line Interface)
@@ -129,20 +111,21 @@ Options:
 == compile
 
 ```
-Compile or watch the project, specifying input/output directories
+Compile or watch the project with specified input and output directories
 
 Usage: typsite compile [OPTIONS]
 
 Options:
-      --config <CONFIG>  
-      --host <HOST>      Serve host [default: localhost]
-      --port <PORT>      Serve port, must be specified to watch mode [default: 0]
-      --cache <CACHE>    Cache directory [default: ./.cache]
-  -i, --input <INPUT>    Typst root directory [default: ./root] [alias: --i]
-  -o, --output <OUTPUT>  Output directory [default: ./publish] [alias: --o]
+      --host <HOST>          Serve host [default: localhost]
+      --port <PORT>          Serve port, must be specified to watch mode [default: 0]
+      --config <CONFIG>      Project config [default: ./.typsite]
+      --cache <CACHE>        Cache dir [default: ./.cache]
+  -i, --input <INPUT>        Typst root dir, where your typst files are stored [default: ./root] [aliases: --i]
+  -o, --output <OUTPUT>      Output dir [default: ./publish] [aliases: --o]
+  -p, --packages <PACKAGES>  Packages dir, will be installed to @local and will be synced to @local in watch mode, skip if empty or not found [default: ] [aliases: --p]
       --no-pretty-url
       --no-short-slug
-  -h, --help             Print help
+  -h, --help                 Print help
 ```
 
 == clean
@@ -172,7 +155,7 @@ Options:
 
 = Architecture & Flow
 
-#inline(scale: 200%, fill: color.white, alignment: center)[#process]
+#get-metacontent("process", from: "/index.typ")
 
 = Configuration
 
@@ -187,5 +170,5 @@ Based on these, you can fully customize your entire site.
 - *syntaxes*: Code syntaxes files
 
 = #embed("./article.typ", sidebar: "only_title", open: false)
-#text-align(center)[Why not take a look at #cite-title("./example.typ") first?]
+#html.align(center)[Why not take a look at #cite-title("./example.typ") first?]
 

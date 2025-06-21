@@ -25,6 +25,7 @@ pub struct Monitor<'a> {
     non_typst_hash_cache: HashMap<PathBuf, Hash>,
     html_hash_cache: HashMap<PathBuf, Hash>,
     config_hash_cache: HashMap<PathBuf, Hash>,
+    packages_hash_cache: HashMap<PathBuf,Hash>
 }
 
 impl<'a> Monitor<'a> {
@@ -33,6 +34,7 @@ impl<'a> Monitor<'a> {
         config_path: &'a Path,
         typst_path: &'a Path,
         html_cache_path: &'a Path,
+        packages_path: Option<&Path>
     ) -> Monitor<'a> {
         let hash_path = cache_path.join("hash");
         let retry_path = hash_path.join("retry");
@@ -40,16 +42,22 @@ impl<'a> Monitor<'a> {
         let non_typst_hash_cache = load_hashes(&hash_path, &hash_path.join(typst_path), "[!.typ]");
         let html_hash_cache = load_hashes(&hash_path, &hash_path.join(html_cache_path), "");
         let config_hash_cache = load_hashes(&hash_path, &hash_path.join(config_path), "");
+        let package_hash_cache =  if let Some(packages_path) = packages_path {
+            load_hashes(&hash_path, &hash_path.join(packages_path), "")
+        } else {
+            HashMap::default()
+        };
         Self {
             config_path,
             typst_path,
-            hash_path,
             html_cache_path,
+            hash_path,
             retry_path,
             typst_hash_cache,
             non_typst_hash_cache,
             html_hash_cache,
             config_hash_cache,
+            packages_hash_cache: package_hash_cache
         }
     }
     pub fn refresh_html(
@@ -100,6 +108,12 @@ impl<'a> Monitor<'a> {
             &mut self.non_typst_hash_cache,
             hash_new,
         )
+    }
+
+    pub fn refresh_packages(&mut self, packages_path: &Path) -> Result<(PathBufs, PathBufs)> {
+        let pattern = format!("{}/**/*", packages_path.display());
+        let hash_new = hash_pattern(&pattern).into_iter().collect();
+        refresh(&self.hash_path, None, &mut self.packages_hash_cache, hash_new)
     }
 
     // Remember those (failed) (typ/html) files, an attempt will be made to load them next time

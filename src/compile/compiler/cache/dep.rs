@@ -47,7 +47,7 @@ impl<'a> RevDeps {
                             .context("Failed to convert path")?;
                         path.set_extension("");
                         serde_json::from_str::<HashSet<String>>(&dep)
-                            .context(format!("Failed to parse dep file {dep_path:?}"))
+                            .with_context(|| format!("Failed to parse dep file {dep_path:?}"))
                             .map(|dep| (path, dep))
                     })
             })

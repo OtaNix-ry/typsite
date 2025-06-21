@@ -34,7 +34,7 @@ impl SchemaConfig {
     }
 
     pub fn get(&self, id: &str) -> Result<&Schema> {
-        self.schemas.get(id).context(format!("No schema named {id}"))
+        self.schemas.get(id).with_context(|| format!("No schema named {id}"))
     }
 
 }

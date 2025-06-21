@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="../assets/schemas/page.css" />
   <link rel="stylesheet" href="../assets/math-block.css" />
   <link rel="stylesheet" href="../assets/math-inline.css" />
+  <link rel="stylesheet" href="../assets/mathyml.css" />
   <link rel="stylesheet" href="../assets/inline-fold.css" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="true">
   <link
@@ -21,7 +22,7 @@
   <header class="header" parent="{has-parent}">
     <nav class="nav">
       <div class="logo">
-        <span onclick="window.location.href='{slug@parent}'" title="{title@parent}">« {title@parent}</span>
+        <span onclick="window.location.href='{slug@parent}'" title="{title@parent} [{slug@parent}]">« {title@parent}</span>
       </div>
     </nav>
   </header>
@@ -43,7 +44,7 @@
                     <metadata get="date" />
                   </li>
                   <li class="meta-item">
-                    <span class="link local"><a href="https://github.com/Glomzzz/typsite" title="Source">Source</a></span>
+                    <span class="link local"><a href="https://github.com/Glomzzz/typsite" title="Source [https://github.com/Glomzzz/typsite]">Source</a></span>
                   </li>
                 </ul>
               </div>

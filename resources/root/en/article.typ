@@ -1,5 +1,4 @@
-
-#import "../lib.typ": *
+#import "/lib/lib.typ": *
 
 #show: schema.with("page")
 
@@ -8,7 +7,7 @@
 #author[Glomzzz]
 #parent("/en/index.typ")
 
-#text-align(center)[TODO....]
+#html.align(center)[TODO....]
 
 = Metadata
 == Page Settings
