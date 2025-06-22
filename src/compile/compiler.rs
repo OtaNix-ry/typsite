@@ -97,7 +97,14 @@ impl Compiler {
             &self.config_path,
             &self.assets_path,
             self.packages_path.as_deref(),
-        )?;
+        );
+        let input = match input {
+            Ok(input) => input,
+            Err(err) => {
+                eprintln!("Error initializing compiler: {err}");
+                return Ok((false, false));
+            }
+        };
         // If all files are not changed, return
         if input.unchanged() {
             return Ok((false, true));

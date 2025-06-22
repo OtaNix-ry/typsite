@@ -20,7 +20,9 @@
   details, 
   inline-math,
   mathml-or-inline,
-  auto-filter
+  auto-filter,
+  block-quote,
+  note,
 )
 
 #import "rewrite.typ" :  (
