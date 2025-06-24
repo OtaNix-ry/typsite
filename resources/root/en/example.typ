@@ -1,13 +1,12 @@
 #import "/lib/lib.typ": *
 
-#show: schema.with("page",
-  head: [
-    #html.tag(
-      "link",
-      rel: "stylesheet",
-      href: "https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC&amp;display=swap",
-    )[]
-  ],)
+#show: schema.with("page", head: [
+  #unique(html.tag(
+    "link",
+    rel: "stylesheet",
+    href: "https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC&amp;display=swap",
+  )[])
+])
 
 
 

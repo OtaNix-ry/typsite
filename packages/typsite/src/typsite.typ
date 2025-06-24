@@ -27,6 +27,19 @@
   ]
 }
 
+/// Creates an unique HTML element in HTML head.
+/// During the Page generation, some articles are embeded into a single page,
+/// and they may have the same HTML head elements,
+/// this function ensures that each element is unique.
+/// 
+// `~>` means that will be processed by typsite
+///
+/// - content (content):
+///    The content to be placed inside the unique element.
+/// -> unique element ~> unique HTML element
+#let unique(content) = {
+  html.tag("unique", content)
+}
 
 // Rewrites
 // `~>` means that will be processed by typsite
