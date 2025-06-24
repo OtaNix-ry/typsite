@@ -12,6 +12,7 @@
   heading-numbering,
   sidebar,
   parent,
+  unique
 )
 
 #import "html.typ" as html
