@@ -12,6 +12,7 @@
 #title[内容示例]
 #date[2025-06-05 07:12]
 #author[Glomzzz]
+#parent("/index.typ")
 
 == 好看的
 

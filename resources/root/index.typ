@@ -4,13 +4,9 @@
 #show: schema.with("page")
 
 
-
-
-
 #let _process = {
   import "@preview/fletcher:0.5.8" as fletcher: diagram, node, edge
   import fletcher.shapes: house, hexagon, circle, rect
-
 
   let blob(pos, label, tint: white, ..args) = node(
     pos,
@@ -173,12 +169,15 @@
 #author[Glomzzz]
 
 #metacontent("process")[
+  #set text(font: "libertinus serif")
   #html.align(center, inline(scale: 200%, block(fill: color.white, _process)))
 ]
 
 #metacontent("icon")[
   #html.align(center, inline(scale: 37.5%, image("icon.png")))
 ]
+
+#set text(font: "Inria Sans") // From .typsite/assets/font
 
 #metacontent("typst-support")[
   #html.align(center)[

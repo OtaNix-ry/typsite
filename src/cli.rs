@@ -52,6 +52,7 @@ impl Executor {
         let input_path = cmd.input.as_str();
         let output_path = cmd.output.as_str();
         let packages_path = cmd.packages.as_str();
+        let typst = cmd.typst;
 
         let cache_path = verify_if_relative_path(&cwd, cache_path)?;
         let config_path = verify_if_relative_path(&cwd, config_path)?;
@@ -74,6 +75,10 @@ impl Executor {
         println!("  - Config dir: {config_path:?}");
         println!("  - Input dir: {input_path:?}");
         println!("  - Output dir: {output_path:?}");
+        if typst != "typst" {
+            println!("  - Typst excutable: {typst}")
+        }
+        
 
         let config = CompileOptions {
             watch: cmd.port != 0,
@@ -87,6 +92,7 @@ impl Executor {
             input_path,
             output_path,
             packages_path,
+            typst
         )?;
         Ok(compiler)
     }
@@ -184,6 +190,10 @@ struct CompileCmd {
     /// Packages dir, will be installed to @local and will be synced to @local in watch mode, skip if empty or not found
     #[arg(short, long, default_value_t = format!(""), visible_alias = "p")]
     packages: String,
+
+    /// Typst executable path
+    #[arg(short, long, default_value_t = format!("typst"), visible_alias = "t")]
+    typst: String,
 
     // Pretty URL, remove the .html suffix from the URL, for example, /about.html -> /about
     #[arg(long, default_value_t = false)]
