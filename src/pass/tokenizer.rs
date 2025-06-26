@@ -1,10 +1,11 @@
 use anyhow::*;
+use std::cell::LazyCell;
 use std::collections::BTreeMap;
 use std::result::Result::Ok;
 
 use std::iter::Peekable;
 
-use html5gum::{HtmlString, StartTag, StringReader, Token};
+use html5gum::{EndTag, HtmlString, StartTag, StringReader, Token};
 
 use crate::ir::embed::EmbedVariables;
 use crate::util::html::{Attributes, html_as_str};
@@ -23,7 +24,7 @@ pub enum Event<T: Label> {
 #[derive(Debug, Clone)]
 pub enum HeadTag {
     Schema { schema: String },
-    Unique
+    Unique,
 }
 
 const SCHEMA_KEY: &str = "schema";
@@ -32,7 +33,7 @@ impl Label for HeadTag {
     fn name(&self) -> &'static str {
         match &self {
             HeadTag::Schema { .. } => SCHEMA_KEY,
-            HeadTag::Unique => UNIQUE_KEY
+            HeadTag::Unique => UNIQUE_KEY,
         }
     }
 }
@@ -108,6 +109,7 @@ pub trait EventTokenizer<T: Label> {
 }
 struct State {
     auto_svg: Option<f64>,
+    svg: bool,
 }
 
 pub struct Tokenizer<'a, 'b, T: Label> {
@@ -121,7 +123,10 @@ impl<'a, 'b, T: Label> Tokenizer<'a, 'b, T> {
         Tokenizer {
             tokenizer,
             backtrace: Vec::new(),
-            state: State { auto_svg: None },
+            state: State {
+                auto_svg: None,
+                svg: false,
+            },
         }
     }
 }
@@ -154,9 +159,7 @@ fn emit_head_next(
                         .to_string();
                     HeadTag::Schema { schema }
                 }
-                UNIQUE_KEY => {
-                    HeadTag::Unique
-                }
+                UNIQUE_KEY => HeadTag::Unique,
                 _ => return Ok(Some(Event::Other(Token::StartTag(start_tag)))),
             };
             if !start_tag.self_closing {
@@ -173,9 +176,7 @@ fn emit_head_next(
                     let backtrace = tokenizer.backtrace.pop();
                     Event::End(backtrace.context("Expect a start tag in the backtrace stack.")?)
                 }
-                UNIQUE_KEY => {
-                    Event::End(HeadTag::Unique)
-                }
+                UNIQUE_KEY => Event::End(HeadTag::Unique),
                 _ => Event::Other(Token::EndTag(end_tag)),
             };
             Ok(Some(event))
@@ -319,7 +320,14 @@ fn emit_body_next(
                         .to_string();
                     BodyTag::AnchorDef { id }
                 }
-                _ => return emit_other_start(&mut tokenizer.state, name, start_tag),
+                _ => {
+                    return emit_other_start(
+                        &mut tokenizer.backtrace,
+                        &mut tokenizer.state,
+                        name,
+                        start_tag,
+                    );
+                }
             };
             if !start_tag.self_closing {
                 tokenizer.backtrace.push(tag.clone());
@@ -328,22 +336,30 @@ fn emit_body_next(
         }
         Token::EndTag(end_tag) => {
             let name = String::from_utf8_lossy(&end_tag.name).to_string();
-            let event = match name.as_str() {
-                "body" => Event::Eof,
+            match name.as_str() {
+                "body" => Ok(Some(Event::Eof)),
                 META_GRAPH_KEY | META_OPTION_KEY | META_CONTENT_KEY | REWRITE_KEY | EMBED_KEY
                 | ANCHOR_GOTO_KEY | ANCHOR_DEF_KEY | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => {
                     let backtrace = tokenizer.backtrace.pop();
-                    Event::End(backtrace.context("Expect a start tag in the backtrace stack.")?)
+                    Ok(Some(Event::End(
+                        backtrace.context("Expect a start tag in the backtrace stack.")?,
+                    )))
                 }
-                _ => Event::Other(Token::EndTag(end_tag)),
-            };
-            Ok(Some(event))
+                _ => emit_other_end(
+                    &mut tokenizer.backtrace,
+                    &mut tokenizer.state,
+                    name,
+                    end_tag,
+                ),
+            }
         }
         plain @ Token::String(_) => Ok(Some(Event::Other(plain))),
         _ => Ok(None),
     }
 }
 
+const SVG_ANCHOR_PREFIX: &str = "#anchor:";
+const SVG_GOTO_PREFIX: &str = "#goto:";
 const CLASS_KEY: &[u8] = b"class";
 const AUTO_SVG_KEY: &[u8] = b"auto-svg"; // will be removed 10 versions later
 const AUTO_SIZED_SVG_KEY: &[u8] = b"auto-sized-svg";
@@ -351,7 +367,8 @@ const SCALE_KEY: &[u8] = b"scale";
 const TYPST_DOC_KEY: &[u8] = b"typst-doc";
 const WIDTH_KEY: &[u8] = b"width";
 const HEIGHT_KEY: &[u8] = b"height";
-const VIEW_BOX_KEY: &[u8] = b"viewbox";
+const VIEW_BOX_KEY: LazyCell<HtmlString> = LazyCell::new(|| b"viewbox".to_vec().into());
+const SVG_HREF_KEY: LazyCell<HtmlString> = LazyCell::new(|| b"href".to_vec().into());
 const PT_OVER_PX: f64 = 3.0 / 4.0;
 
 fn scale(attrs: &mut BTreeMap<HtmlString, HtmlString>, key: &[u8], ratio: f64) -> Result<()> {
@@ -368,11 +385,16 @@ fn scale(attrs: &mut BTreeMap<HtmlString, HtmlString>, key: &[u8], ratio: f64) -
     attrs.insert(key.to_vec().into(), result.as_bytes().to_vec().into());
     Ok(())
 }
+
 fn emit_other_start(
+    backtrace: &mut Vec<BodyTag>,
     state: &mut State,
     name: String,
     mut start_tag: StartTag,
 ) -> Result<Option<Event<BodyTag>>> {
+    if name.as_str() == "svg" {
+        state.svg = true;
+    }
     match name.as_str() {
         "span" if matches!(start_tag.attributes.get(CLASS_KEY),Some(class) if class == &AUTO_SVG_KEY || class == &AUTO_SIZED_SVG_KEY) =>
         {
@@ -389,14 +411,61 @@ fn emit_other_start(
         {
             if let Some(ratio) = state.auto_svg {
                 let svg = &mut start_tag.attributes;
-                let view_box_key: HtmlString = VIEW_BOX_KEY.to_vec().into();
-                svg.remove(&view_box_key);
+                svg.remove(VIEW_BOX_KEY.as_ref());
                 scale(svg, WIDTH_KEY, ratio)?;
                 scale(svg, HEIGHT_KEY, ratio)?;
                 state.auto_svg = None;
             }
         }
+        "a" if state.svg => {
+            let url = start_tag
+                .attributes
+                .get(SVG_HREF_KEY.as_ref())
+                .with_context(|| {
+                    format!("Expect an attribute of {SVG_HREF_KEY:?} in svg <a> tag")
+                })?;
+            let url = html_as_str(url);
+            let url = url.as_str();
+            let tag = if url.starts_with(SVG_ANCHOR_PREFIX) {
+                let url = url.strip_prefix(SVG_ANCHOR_PREFIX).unwrap();
+                BodyTag::AnchorDef {
+                    id: url.to_string(),
+                }
+            } else if url.starts_with(SVG_GOTO_PREFIX) {
+                let url = url.strip_prefix(SVG_GOTO_PREFIX).unwrap();
+                BodyTag::AnchorGoto {
+                    id: url.to_string(),
+                }
+            } else {
+                return Ok(Some(Event::Other(Token::StartTag(start_tag))));
+            };
+            if !start_tag.self_closing {
+                backtrace.push(tag.clone());
+            }
+            return Ok(Some(Event::Start(tag)));
+        }
         _ => {}
     }
     Ok(Some(Event::Other(Token::StartTag(start_tag))))
+}
+
+fn emit_other_end(
+    backtrace: &mut Vec<BodyTag>,
+    state: &mut State,
+    name: String,
+    end_tag: EndTag,
+) -> Result<Option<Event<BodyTag>>> {
+    match name.as_str() {
+        "svg" if state.svg => {
+            state.svg = false;
+        }
+        "a" if state.svg => {
+            if let Some(start_tag) = backtrace.pop() {
+                return Ok(Some(Event::End(start_tag)));
+            }
+        }
+
+        _ => {}
+    }
+    Ok(Some(Event::Other(Token::EndTag(end_tag))))
 }
