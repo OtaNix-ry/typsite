@@ -148,6 +148,7 @@ impl Compiler {
             &config,
             &mut monitor,
             &self.typst_path,
+            &self.config_path,
             &self.html_cache_path,
             &changed_typst_paths,
             retry_typst_paths,
