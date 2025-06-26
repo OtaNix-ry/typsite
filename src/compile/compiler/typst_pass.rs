@@ -12,13 +12,19 @@ use std::process::Command;
 use super::cache::monitor::Monitor;
 use super::{ErrorArticles, PathBufs};
 
-pub fn compile_typst(root: &Path,config:&Path, input: &Path, output: &Path) -> anyhow::Result<()> {
+pub fn compile_typst(
+    typst: &str,
+    root: &Path,
+    config: &Path,
+    input: &Path,
+    output: &Path,
+) -> anyhow::Result<()> {
     let font_path = config.join("assets/fonts");
     let font_path = font_path.as_path();
     let output = if cfg!(target_os = "windows") {
         Command::new("powershell")
             .arg(format!(
-                "./typst c {} --root {} -f=html --features html  {} --font-path {}",
+                "{typst} c {} --root {} -f=html --features html  {} --font-path {}",
                 input.display(),
                 root.display(),
                 output.display(),
@@ -28,7 +34,7 @@ pub fn compile_typst(root: &Path,config:&Path, input: &Path, output: &Path) -> a
             .with_context(|| format!("Typst compile to HTML failed: {}", input.display()))?
     } else {
         create_all_parent_dir(output)?;
-        Command::new("./typst")
+        Command::new(typst)
             .arg("c")
             .arg(input)
             .arg("--root")
@@ -53,6 +59,7 @@ pub fn compile_typst(root: &Path,config:&Path, input: &Path, output: &Path) -> a
 }
 
 pub fn compile_typsts(
+    typst: &str,
     config: &TypsiteConfig<'_>,
     monitor: &mut Monitor,
     typst_path: &Path,
@@ -73,7 +80,7 @@ pub fn compile_typsts(
             (
                 slug,
                 typ_path.clone(),
-                compile_typst(typst_path,config_path, typ_path, &cache_output),
+                compile_typst(typst, typst_path, config_path, typ_path, &cache_output),
             )
         })
         .filter_map(|(slug, path, res)| {

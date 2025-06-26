@@ -52,7 +52,8 @@ pub struct Compiler {
     assets_path: PathBuf,     // Assets
     cache_path: PathBuf,      // Cache root
     output_path: PathBuf,     // Output
-    packages_path: Option<PathBuf>, // Package
+    packages_path: Option<PathBuf>,// Package
+    typst: String,            // Typst executable path
 }
 
 impl Compiler {
@@ -63,6 +64,7 @@ impl Compiler {
         typst_path: PathBuf,
         output_path: PathBuf,
         packages_path: Option<PathBuf>,
+        typst: String
     ) -> Result<Self> {
         init_compile_options(options)?;
         let html_cache_path = cache_path.join("html");
@@ -75,6 +77,7 @@ impl Compiler {
             cache_path,
             output_path,
             packages_path,
+            typst
         })
     }
     pub fn output_path(&self) -> &Path {
@@ -145,6 +148,7 @@ impl Compiler {
         //2. Export typst as HTML
         // Only compile updated typst files into html
         let error_typst_articles = compile_typsts(
+            &self.typst,
             &config,
             &mut monitor,
             &self.typst_path,
