@@ -60,13 +60,13 @@ jobs:
       - name: Typsite compile (retry 2)
         continue-on-error: true
         id: compile_3
-        if: steps.compile2.outcome == 'failure'
+        if: steps.compile_2.outcome == 'failure'
         run: |
           ./typsite clean
           ./typsite c
       - name: Typsite compile (retry 3)
         id: compile_4
-        if: steps.compile3.outcome == 'failure'
+        if: steps.compile_3.outcome == 'failure'
         run: |
           ./typsite clean
           ./typsite c
