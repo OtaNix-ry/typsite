@@ -118,7 +118,6 @@
   }
   body
 }
-
 // Use before `rule-ref-label`
 #let rule-ref-footnote(body) = context {
   let footnotes = query(footnote).map(it => it.at("label", default: none)).filter(it => it != none)
@@ -148,6 +147,12 @@
   }
   body
 }
+
+#let rule-ref(body) = {
+  let body = rule-ref-footnote(body)
+  rule-ref-label(body)
+}
+
 
 #let rule-footnote(body) = {
   show footnote: it => context {

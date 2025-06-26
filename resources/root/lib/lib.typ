@@ -62,8 +62,7 @@
       show: rule-footnote
       show: rule-link-common
       show: rule-link-anchor
-      show: rule-ref-footnote
-      show: rule-ref-label
+      show: rule-ref
       show: rule-raw
       show: rule-label
       body
