@@ -3,7 +3,7 @@
 [ [English](./README.md) | **中文** ]
 
 <div style="text-align: center;">
-<img src="./icon.png" width="37.5%"/>
+<img src="./resources/root/icon.svg" width="37.5%"/>
 </div>
 
 <div style="text-align: center;">
