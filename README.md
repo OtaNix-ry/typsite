@@ -18,7 +18,7 @@ Typsite is a static site generator (SSG) that uses pure `Typst` for content crea
 -   Core `Typst` expressions and syntax
 -   Framework: Incremental headings, section templates, sidebar, footer
 -   Rich Text: Paragraphs, sections, quotes, code blocks, math formulas, footnotes, page embeds
--   Typst math -> Mathml （auto detected math-font)
+-   Typst math -> Mathml (auto detected math-font)
 -   Support for modern web technologies: HTML5, CSS3, and JavaScript (ES6+)
 -   Automatically typst-packages install & sync (in watch-mode) 
 -   Incremental compilation and real-time preview
@@ -57,14 +57,25 @@ While there are official plans for Typst to automatically convert styles to HTML
 -   Start with template: [Typsite Template](https://github.com/Glomzzz/typsite-template) (HIGHLY RECOMMENDED, for linux / macos)
 -   Download the binary from the [Release page](https://github.com/Glomzzz/typsite/releases/latest).
     -   Ensure you have Typst **0.13+** installed.
--   Build using Nix & Flakes.
-    -   Ensure you have enabled `experimental-features = nix-command flakes` in your Nix configuration.
+-   Build using Nix
 
 ```shell
-git clone https://github.com/Glomzzz/typsite.git
+git clone https://github.com/OtaNix-ry/typsite.git
 cd typsite
-nix build .
+nix-build -A package
 ```
+
+Or just start a shell which will have `typsite` in PATH
+
+```shell
+nix-shell -A devShell
+```
+
+> Or if you prefer the **unstable** flakes and nix-command features...
+> 
+> ```shell
+> nix build
+> ```
 
 ## 5. Architecture & Flow
 
